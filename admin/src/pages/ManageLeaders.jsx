@@ -1,0 +1,188 @@
+import { useEffect, useState } from 'react';
+import axios from '../api/axios';
+import DataTable from '../components/DataTable';
+import { Plus, Upload, Trash2, Award } from 'lucide-react';
+
+export default function ManageLeaders() {
+  const [leaders, setLeaders] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ user_id: '', position: '', bio: '', display_order: 0 });
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  useEffect(() => {
+    fetchLeaders();
+    fetchUsers();
+  }, []);
+
+  const fetchLeaders = () => {
+    setLoading(true);
+    axios.get('/leaders?active_only=false').then((res) => {
+      setLeaders(res.data);
+      setLoading(false);
+    });
+  };
+
+  const fetchUsers = () => {
+    axios.get('/admin/students').then((res) => setUsers(res.data));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const res = await axios.post('/leaders', form);
+    if (selectedFile && res.data.id) {
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      await axios.post(`/leaders/${res.data.id}/upload-photo`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    }
+    setForm({ user_id: '', position: '', bio: '', display_order: 0 });
+    setSelectedFile(null);
+    setShowForm(false);
+    fetchLeaders();
+  };
+
+  const removeLeader = async (id) => {
+    if (!confirm('Remove this leader?')) return;
+    await axios.delete(`/leaders/${id}`);
+    fetchLeaders();
+  };
+
+  const columns = [
+    {
+      key: 'photo_url',
+      label: 'Photo',
+      render: (val) => val ? (
+        <img src={`http://localhost:8000${val}`} alt="" className="w-12 h-12 rounded-full object-cover" />
+      ) : (
+        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-400"><Award size={20} /></div>
+      )
+    },
+    {
+      key: 'user_id',
+      label: 'Name',
+      render: (_, row) => row.user?.profile?.full_name || 'Unknown'
+    },
+    { key: 'position', label: 'Position' },
+    {
+      key: 'is_active',
+      label: 'Status',
+      render: (val) => (
+        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${val ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+          {val ? 'Active' : 'Inactive'}
+        </span>
+      )
+    },
+    { key: 'display_order', label: 'Order' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Manage Leaders</h1>
+          <p className="text-gray-500 mt-1">Add and manage LOTSA leadership team</p>
+        </div>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition-colors"
+        >
+          <Plus size={18} /> {showForm ? 'Cancel' : 'Add Leader'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Select Student</label>
+              <select
+                required
+                value={form.user_id}
+                onChange={(e) => setForm({ ...form, user_id: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="">Choose a student...</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.profile?.full_name} ({u.profile?.admission_number})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+              <select
+                required
+                value={form.position}
+                onChange={(e) => setForm({ ...form, position: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              >
+                <option value="">Select position...</option>
+                <option value="Chairperson">President</option>
+                <option value="Secretary">Secretary General</option>
+                <option value="Treasurer">Treasurer</option>
+                <option value="Organizing Secretary">Organizing Secretary</option>
+                <option value="Academic Rep">Academic Rep</option>
+                <option value="Welfare Rep">Welfare Rep</option>
+                <option value="Welfare Rep">Patron</option>
+                <option value="Welfare Rep">Deputy Patron</option>
+                <option value="Welfare Rep">Deputy President</option>
+                <option value="Welfare Rep">High school representative</option>
+                <option value="Welfare Rep">Games Director</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+              <input
+                type="number"
+                value={form.display_order}
+                onChange={(e) => setForm({ ...form, display_order: parseInt(e.target.value) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Photo</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setSelectedFile(e.target.files[0])}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+            <textarea
+              rows={3}
+              value={form.bio}
+              onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="Brief biography..."
+            />
+          </div>
+          <button type="submit" className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700">
+            Add Leader
+          </button>
+        </form>
+      )}
+
+      <DataTable
+        columns={columns}
+        data={leaders}
+        loading={loading}
+        actions={(row) => (
+          <button
+            onClick={() => removeLeader(row.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Remove"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+      />
+    </div>
+  );
+}
