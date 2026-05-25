@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: lotsa-connect-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lotsa-connect-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+
+databases:
+  - name: lotsa-connect-db
+    databaseName: lotsa_connect
+    user: lotsa_connect
