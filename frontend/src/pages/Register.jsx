@@ -229,7 +229,7 @@ export default function Register() {
                         required 
                         value={form.full_name} 
                         onChange={e => setForm({...form, full_name: e.target.value})}
-                        placeholder="John Doe"
+                        placeholder="Daniel Natwom"
                         className="w-full pl-9 pr-3 py-2.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all text-sm"
                       />
                     </div>
