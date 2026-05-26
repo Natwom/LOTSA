@@ -5,7 +5,7 @@ from .database import engine
 from .models import Base
 from .routers import auth, students, announcements, events, elections, complaints, chats, notifications, admin, leaders, membership, settings, terms, documents, contributions
 
-# Create tables on startup with error handling
+# Create tables on startup
 try:
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables created successfully")
@@ -14,15 +14,10 @@ except Exception as e:
 
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
+# CORS - allow all for now
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "https://lotsa-ui.onrender.com",
-        "https://lotsa-admin.onrender.com",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,3 +48,8 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.post("/api/test")
+def test_endpoint(data: dict):
+    print(f"TEST ENDPOINT RECEIVED: {data}")
+    return {"received": data, "status": "ok"}

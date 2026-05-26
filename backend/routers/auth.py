@@ -46,17 +46,24 @@ def validate_kenyan_phone(phone: str):
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
+    print(f"REGISTER START: email={user.email}")
     try:
-        # Check email exists
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
+            print("REGISTER: Email already exists")
             raise HTTPException(status_code=400, detail="Email already registered")
         
+        print("REGISTER: Validating admission...")
         validate_admission_number(user.admission_number, db)
+        
+        print("REGISTER: Validating phone...")
         validate_kenyan_phone(user.phone_number)
 
-        # Create user
+        print("REGISTER: Hashing password...")
         hashed = auth_utils.get_password_hash(user.password)
+        print(f"REGISTER: Hash done, length={len(hashed)}")
+
+        print("REGISTER: Creating user...")
         db_user = models.User(
             email=user.email,
             password_hash=hashed,
@@ -65,8 +72,9 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
+        print(f"REGISTER: User created, id={db_user.id}")
 
-        # Create profile
+        print("REGISTER: Creating profile...")
         profile = models.StudentProfile(
             user_id=db_user.id,
             full_name=user.full_name,
@@ -77,18 +85,19 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         )
         db.add(profile)
         db.commit()
+        print("REGISTER: Profile created")
 
-        # Return user with profile loaded
         result = db.query(models.User).options(
             joinedload(models.User.profile)
         ).filter(models.User.id == db_user.id).first()
         
+        print("REGISTER: SUCCESS")
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"REGISTRATION ERROR: {str(e)}")
+        print(f"REGISTER CRASH: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
