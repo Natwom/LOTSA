@@ -23,15 +23,34 @@ export default function Chat() {
     fetchUsers()
 
     const token = localStorage.getItem('token')
-    ws.current = new WebSocket(`ws://localhost:8000/api/chats/ws?token=${token}`)
-    ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      console.log('WebSocket received:', data)  // DEBUG
-      if (data.type === 'message') {
-        setMessages(prev => [...prev, data.payload])
-        fetchConversations()
+    const WS_BASE = import.meta.env.VITE_WS_URL || 'wss://lotsa.onrender.com/api/chats'
+    
+    const connect = () => {
+      ws.current = new WebSocket(`${WS_BASE}/ws?token=${token}`)
+
+      ws.current.onopen = () => console.log('WebSocket connected')
+      
+      ws.current.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        if (data.type === 'message') {
+          setMessages(prev => [...prev, data.payload])
+          fetchConversations()
+        }
+      }
+
+      ws.current.onclose = () => {
+        console.log('WebSocket closed, reconnecting in 3s...')
+        setTimeout(connect, 3000)
+      }
+
+      ws.current.onerror = (err) => {
+        console.error('WebSocket error:', err)
+        ws.current?.close()
       }
     }
+
+    connect()
+
     return () => ws.current?.close()
   }, [])
 
@@ -56,7 +75,6 @@ export default function Chat() {
     setActiveConv(convId)
     try {
       const res = await axios.get(`/chats/conversations/${convId}/messages`)
-      console.log('Loaded messages:', res.data)  // DEBUG
       setMessages(res.data || [])
     } catch (err) {
       console.error('Failed to load messages', err)
@@ -247,11 +265,6 @@ export default function Chat() {
               )}
               {messages.map((msg, i) => {
                 const isMe = msg.sender_id === user?.id
-                
-                // DEBUG: log each message to see what fields it has
-                if (i === 0) console.log('Rendering message:', msg)
-                
-                // Get sender name with multiple fallbacks
                 let senderName = 'Unknown'
                 if (isMe) {
                   senderName = 'You'
@@ -266,7 +279,6 @@ export default function Chat() {
                 return (
                   <div key={msg.id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
-                      {/* Sender name - shown for ALL messages in groups, only for others in DMs */}
                       {(activeConversation?.is_group || !isMe) && (
                         <span className={`text-xs font-semibold mb-0.5 px-1 ${isMe ? 'text-blue-600' : 'text-gray-500'}`}>
                           {senderName}
