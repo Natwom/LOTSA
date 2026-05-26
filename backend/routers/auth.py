@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session, joinedload
 from datetime import timedelta
 from typing import List
 import re
+import traceback
 from .. import models, schemas, database, auth as auth_utils
 
 router = APIRouter()
 
 def validate_admission_number(number: str, db: Session):
-    """Validate admission number format and uniqueness"""
     pattern = r'^LOTSA 2025(\d{4})$'
     match = re.match(pattern, number)
     if not match:
@@ -21,7 +21,7 @@ def validate_admission_number(number: str, db: Session):
     if len(set(digits)) != 4:
         raise HTTPException(
             status_code=400,
-            detail="The 4 digits after 'LOTSA 2025' must all be different (e.g., 1234, 9876). No repeats allowed."
+            detail="The 4 digits after 'LOTSA 2025' must all be different"
         )
     
     existing = db.query(models.StudentProfile).filter(
@@ -31,48 +31,66 @@ def validate_admission_number(number: str, db: Session):
         raise HTTPException(status_code=400, detail="Admission number already registered")
 
 def validate_kenyan_phone(phone: str):
-    """Validate Kenyan phone number: 254XXXXXXXXX"""
     if not phone:
         return
     phone = phone.replace(' ', '')
     if not re.match(r'^254\d{9}$', phone):
         raise HTTPException(
             status_code=400,
-            detail="Phone number must be a valid Kenyan number (254XXXXXXXXX or 07XX XXX XXX)"
+            detail="Phone number must be a valid Kenyan number (254XXXXXXXXX)"
         )
     prefix = phone[3:5]
     valid_prefixes = ['10', '11', '12', '70', '71', '72', '73', '74', '79', '75', '76', '77', '78']
     if prefix not in valid_prefixes:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid Kenyan mobile prefix. Valid prefixes: Safaricom (070x-079x), Airtel (010x-012x)"
-        )
+        raise HTTPException(status_code=400, detail="Invalid Kenyan mobile prefix")
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    if db.query(models.User).filter(models.User.email == user.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    validate_admission_number(user.admission_number, db)
-    validate_kenyan_phone(user.phone_number)
+    try:
+        # Check email exists
+        existing_user = db.query(models.User).filter(models.User.email == user.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        validate_admission_number(user.admission_number, db)
+        validate_kenyan_phone(user.phone_number)
 
-    hashed = auth_utils.get_password_hash(user.password)
-    db_user = models.User(email=user.email, password_hash=hashed, role=models.UserRole.STUDENT)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+        # Create user
+        hashed = auth_utils.get_password_hash(user.password)
+        db_user = models.User(
+            email=user.email,
+            password_hash=hashed,
+            role=models.UserRole.STUDENT
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
 
-    profile = models.StudentProfile(
-        user_id=db_user.id,
-        full_name=user.full_name,
-        admission_number=user.admission_number,
-        course=user.course,
-        year_of_study=user.year_of_study,
-        phone_number=user.phone_number
-    )
-    db.add(profile)
-    db.commit()
-    return db_user
+        # Create profile
+        profile = models.StudentProfile(
+            user_id=db_user.id,
+            full_name=user.full_name,
+            admission_number=user.admission_number,
+            course=user.course,
+            year_of_study=user.year_of_study,
+            phone_number=user.phone_number
+        )
+        db.add(profile)
+        db.commit()
+
+        # Return user with profile loaded
+        result = db.query(models.User).options(
+            joinedload(models.User.profile)
+        ).filter(models.User.id == db_user.id).first()
+        
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"REGISTRATION ERROR: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db)):
@@ -80,7 +98,10 @@ def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db
     if not user or not auth_utils.verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = auth_utils.create_access_token(data={"sub": str(user.id), "role": user.role.value}, expires_delta=expires)
+    token = auth_utils.create_access_token(
+        data={"sub": str(user.id), "role": user.role.value},
+        expires_delta=expires
+    )
     return {"access_token": token, "token_type": "bearer", "role": user.role.value}
 
 @router.get("/me", response_model=schemas.UserOut)

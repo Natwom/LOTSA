@@ -142,12 +142,35 @@ export default function Register() {
     }
     setError('')
     setIsLoading(true)
+
+    // DEBUG: Log what we're sending
+    const payload = {
+      email: form.email,
+      password: form.password,
+      full_name: form.full_name,
+      admission_number: form.admission_number,
+      course: form.course,
+      year_of_study: parseInt(form.year_of_study), // MUST BE INTEGER
+      phone_number: form.phone_number || null
+    }
+    console.log('Sending registration payload:', payload)
+
     try {
-      await axios.post('/auth/register', form)
+      const res = await axios.post('/auth/register', payload)
+      console.log('Registration success:', res.data)
       setSuccess(true)
       setTimeout(() => navigate('/login'), 2500)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.')
+      console.error('FULL ERROR:', err)
+      console.error('Response status:', err.response?.status)
+      console.error('Response data:', err.response?.data)
+      console.error('Response headers:', err.response?.headers)
+      
+      const detail = err.response?.data?.detail
+      const msg = typeof detail === 'string' 
+        ? detail 
+        : (typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data))
+      setError(msg || `Server error (${err.response?.status || 'unknown'})`)
       setIsLoading(false)
     }
   }
