@@ -4,9 +4,13 @@ from datetime import timedelta
 from typing import List
 import re
 import traceback
+from passlib.context import CryptContext
 from .. import models, schemas, database, auth as auth_utils
 
 router = APIRouter()
+
+# Local bcrypt handler to bypass any caching issues
+pwd_local = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def validate_admission_number(number: str, db: Session):
     pattern = r'^LOTSA 2025(\d{4})$'
@@ -50,20 +54,18 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     try:
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
-            print("REGISTER: Email already exists")
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        print("REGISTER: Validating admission...")
         validate_admission_number(user.admission_number, db)
-        
-        print("REGISTER: Validating phone...")
         validate_kenyan_phone(user.phone_number)
 
-        print("REGISTER: Hashing password...")
-        hashed = auth_utils.get_password_hash(user.password)
-        print(f"REGISTER: Hash done, length={len(hashed)}")
+        # TRUNCATE PASSWORD HERE - bypass auth.py entirely
+        safe_password = user.password[:72]
+        print(f"Password length: {len(user.password)}, truncated to: {len(safe_password)}")
+        
+        hashed = pwd_local.hash(safe_password)
+        print(f"Hash generated, length: {len(hashed)}")
 
-        print("REGISTER: Creating user...")
         db_user = models.User(
             email=user.email,
             password_hash=hashed,
@@ -72,9 +74,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        print(f"REGISTER: User created, id={db_user.id}")
+        print(f"User created: id={db_user.id}")
 
-        print("REGISTER: Creating profile...")
         profile = models.StudentProfile(
             user_id=db_user.id,
             full_name=user.full_name,
@@ -85,13 +86,13 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         )
         db.add(profile)
         db.commit()
-        print("REGISTER: Profile created")
+        print("Profile created")
 
         result = db.query(models.User).options(
             joinedload(models.User.profile)
         ).filter(models.User.id == db_user.id).first()
         
-        print("REGISTER: SUCCESS")
+        print("REGISTER SUCCESS")
         return result
 
     except HTTPException:
