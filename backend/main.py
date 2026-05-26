@@ -5,19 +5,23 @@ from .database import engine
 from .models import Base
 from .routers import auth, students, announcements, events, elections, complaints, chats, notifications, admin, leaders, membership, settings, terms, documents, contributions
 
-Base.metadata.create_all(bind=engine)
+# Create tables on startup with error handling
+try:
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database tables created successfully")
+except Exception as e:
+    print(f"⚠️ WARNING: Could not create tables: {e}")
 
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
-# CORS - allow all origins for now (lock down later in production)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:3000",
-        "https://lotsa-ui.onrender.com",      # ← YOUR LIVE FRONTEND
-        "https://lotsa-admin.onrender.com",     # ← YOUR LIVE ADMIN (when deployed)
+        "https://lotsa-ui.onrender.com",
+        "https://lotsa-admin.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -45,3 +49,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 @app.get("/")
 def root():
     return {"message": "LOTSA CONNECT API", "status": "running", "version": "2.0.0"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
