@@ -1,0 +1,11 @@
+services:
+  - type: static
+    name: lotsa-connect-ui
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://lotsa.onrender.com/api
+      - key: VITE_WS_URL
+        value: wss://lotsa.onrender.com/api/chats
