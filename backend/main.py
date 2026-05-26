@@ -9,9 +9,16 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
+# CORS - allow all origins for now (lock down later in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "https://lotsa-ui.onrender.com",      # ← YOUR LIVE FRONTEND
+        "https://lotsa-admin.onrender.com",     # ← YOUR LIVE ADMIN (when deployed)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
