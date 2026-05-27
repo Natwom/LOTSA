@@ -46,7 +46,7 @@ def validate_kenyan_phone(phone: str):
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    print(f"[REGISTER] email={user.email}, password_len={len(user.password)}")
+    print(f"[REGISTER] email={user.email}")
     try:
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
@@ -56,7 +56,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         validate_kenyan_phone(user.phone_number)
 
         hashed = auth_utils.get_password_hash(user.password)
-        print(f"[REGISTER] hash obtained, creating user")
+        print(f"[REGISTER] hash created, len={len(hashed)}")
 
         db_user = models.User(
             email=user.email,
@@ -96,18 +96,18 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
 
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db)):
-    print(f"[LOGIN] email={form_data.email}, password_len={len(form_data.password)}")
+    print(f"[LOGIN] email={form_data.email}")
     user = db.query(models.User).filter(models.User.email == form_data.email).first()
     if not user:
         print("[LOGIN] user not found")
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
-    print(f"[LOGIN] calling verify_password, hash_len={len(user.password_hash)}")
+    print(f"[LOGIN] verifying password")
     if not auth_utils.verify_password(form_data.password, user.password_hash):
-        print("[LOGIN] verify_password returned False")
+        print("[LOGIN] password mismatch")
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
-    print("[LOGIN] password verified, creating token")
+    print("[LOGIN] password OK, creating token")
     expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = auth_utils.create_access_token(
         data={"sub": str(user.id), "role": user.role.value},

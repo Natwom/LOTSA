@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -8,32 +8,20 @@ from .database import get_db
 from .models import User, UserRole
 from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-def verify_password(plain_password, hashed_password):
-    print(f"[VERIFY_PASSWORD] raw len={len(plain_password)} chars")
-    plain_bytes = plain_password.encode('utf-8')[:72]
-    print(f"[VERIFY_PASSWORD] truncated to {len(plain_bytes)} bytes")
-    try:
-        result = pwd_context.verify(plain_bytes, hashed_password)
-        print(f"[VERIFY_PASSWORD] bcrypt result={result}")
-        return result
-    except Exception as e:
-        print(f"[VERIFY_PASSWORD] bcrypt ERROR: {type(e).__name__}: {e}")
-        raise
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # bcrypt has a hard 72-byte limit
+    plain_bytes = plain_password.encode("utf-8")[:72]
+    hashed_bytes = hashed_password.encode("utf-8")
+    return bcrypt.checkpw(plain_bytes, hashed_bytes)
 
-def get_password_hash(password):
-    print(f"[GET_PASSWORD_HASH] raw len={len(password)} chars")
-    plain_bytes = password.encode('utf-8')[:72]
-    print(f"[GET_PASSWORD_HASH] truncated to {len(plain_bytes)} bytes")
-    try:
-        hashed = pwd_context.hash(plain_bytes)
-        print(f"[GET_PASSWORD_HASH] success, hash len={len(hashed)}")
-        return hashed
-    except Exception as e:
-        print(f"[GET_PASSWORD_HASH] bcrypt ERROR: {type(e).__name__}: {e}")
-        raise
+def get_password_hash(password: str) -> str:
+    # bcrypt has a hard 72-byte limit
+    plain_bytes = password.encode("utf-8")[:72]
+    salt = bcrypt.gensalt(rounds=12)
+    hashed = bcrypt.hashpw(plain_bytes, salt)
+    return hashed.decode("utf-8")
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
