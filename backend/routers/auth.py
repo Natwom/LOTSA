@@ -46,7 +46,7 @@ def validate_kenyan_phone(phone: str):
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    print(f"REGISTER START: email={user.email}")
+    print(f"[REGISTER] email={user.email}, password_len={len(user.password)}")
     try:
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
@@ -55,9 +55,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         validate_admission_number(user.admission_number, db)
         validate_kenyan_phone(user.phone_number)
 
-        # Use centralized hash function with 72-byte truncation
         hashed = auth_utils.get_password_hash(user.password)
-        print(f"Hash generated, length: {len(hashed)}")
+        print(f"[REGISTER] hash obtained, creating user")
 
         db_user = models.User(
             email=user.email,
@@ -67,7 +66,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        print(f"User created: id={db_user.id}")
+        print(f"[REGISTER] user created id={db_user.id}")
 
         profile = models.StudentProfile(
             user_id=db_user.id,
@@ -79,27 +78,36 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         )
         db.add(profile)
         db.commit()
-        print("Profile created")
+        print("[REGISTER] profile created")
 
         result = db.query(models.User).options(
             joinedload(models.User.profile)
         ).filter(models.User.id == db_user.id).first()
         
-        print("REGISTER SUCCESS")
+        print("[REGISTER] SUCCESS")
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"REGISTER CRASH: {str(e)}")
+        print(f"[REGISTER] CRASH: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db)):
+    print(f"[LOGIN] email={form_data.email}, password_len={len(form_data.password)}")
     user = db.query(models.User).filter(models.User.email == form_data.email).first()
-    if not user or not auth_utils.verify_password(form_data.password, user.password_hash):
+    if not user:
+        print("[LOGIN] user not found")
         raise HTTPException(status_code=400, detail="Incorrect email or password")
+    
+    print(f"[LOGIN] calling verify_password, hash_len={len(user.password_hash)}")
+    if not auth_utils.verify_password(form_data.password, user.password_hash):
+        print("[LOGIN] verify_password returned False")
+        raise HTTPException(status_code=400, detail="Incorrect email or password")
+    
+    print("[LOGIN] password verified, creating token")
     expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = auth_utils.create_access_token(
         data={"sub": str(user.id), "role": user.role.value},

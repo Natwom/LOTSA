@@ -12,14 +12,28 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 def verify_password(plain_password, hashed_password):
-    # Truncate to 72 BYTES to satisfy bcrypt 4.0+
+    print(f"[VERIFY_PASSWORD] raw len={len(plain_password)} chars")
     plain_bytes = plain_password.encode('utf-8')[:72]
-    return pwd_context.verify(plain_bytes, hashed_password)
+    print(f"[VERIFY_PASSWORD] truncated to {len(plain_bytes)} bytes")
+    try:
+        result = pwd_context.verify(plain_bytes, hashed_password)
+        print(f"[VERIFY_PASSWORD] bcrypt result={result}")
+        return result
+    except Exception as e:
+        print(f"[VERIFY_PASSWORD] bcrypt ERROR: {type(e).__name__}: {e}")
+        raise
 
 def get_password_hash(password):
-    # Truncate to 72 BYTES to satisfy bcrypt 4.0+
+    print(f"[GET_PASSWORD_HASH] raw len={len(password)} chars")
     plain_bytes = password.encode('utf-8')[:72]
-    return pwd_context.hash(plain_bytes)
+    print(f"[GET_PASSWORD_HASH] truncated to {len(plain_bytes)} bytes")
+    try:
+        hashed = pwd_context.hash(plain_bytes)
+        print(f"[GET_PASSWORD_HASH] success, hash len={len(hashed)}")
+        return hashed
+    except Exception as e:
+        print(f"[GET_PASSWORD_HASH] bcrypt ERROR: {type(e).__name__}: {e}")
+        raise
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
