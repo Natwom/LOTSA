@@ -12,10 +12,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password[:72], hashed_password)
+    # Truncate to 72 BYTES to satisfy bcrypt 4.0+
+    plain_bytes = plain_password.encode('utf-8')[:72]
+    return pwd_context.verify(plain_bytes, hashed_password)
 
 def get_password_hash(password):
-    return pwd_context.hash(password[:72])
+    # Truncate to 72 BYTES to satisfy bcrypt 4.0+
+    plain_bytes = password.encode('utf-8')[:72]
+    return pwd_context.hash(plain_bytes)
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -49,4 +53,4 @@ def get_current_active_user(current_user: User = Depends(get_current_user)):
 def require_admin(current_user: User = Depends(get_current_active_user)):
     if current_user.role not in [UserRole.ADMIN, UserRole.LEADER]:
         raise HTTPException(status_code=403, detail="Not authorized")
-    return current_user# Cache bust Tue May 26 06:30:56 AM EDT 2026
+    return current_user

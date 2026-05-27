@@ -4,13 +4,9 @@ from datetime import timedelta
 from typing import List
 import re
 import traceback
-from passlib.context import CryptContext
 from .. import models, schemas, database, auth as auth_utils
 
 router = APIRouter()
-
-# Local bcrypt handler to bypass any caching issues
-pwd_local = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def validate_admission_number(number: str, db: Session):
     pattern = r'^LOTSA 2025(\d{4})$'
@@ -59,11 +55,8 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         validate_admission_number(user.admission_number, db)
         validate_kenyan_phone(user.phone_number)
 
-        # TRUNCATE PASSWORD HERE - bypass auth.py entirely
-        safe_password = user.password[:72]
-        print(f"Password length: {len(user.password)}, truncated to: {len(safe_password)}")
-        
-        hashed = pwd_local.hash(safe_password)
+        # Use centralized hash function with 72-byte truncation
+        hashed = auth_utils.get_password_hash(user.password)
         print(f"Hash generated, length: {len(hashed)}")
 
         db_user = models.User(
@@ -126,4 +119,4 @@ def list_users(
     users = db.query(models.User).options(
         joinedload(models.User.profile)
     ).filter(models.User.is_active == True).all()
-    return users# FORCE REBUILD 1779874974
+    return users
