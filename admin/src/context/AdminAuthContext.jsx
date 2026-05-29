@@ -6,51 +6,42 @@ const AuthContext = createContext(null)
 export const AdminAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token')
     if (!token) {
       setLoading(false)
-      setAuthChecked(true)
       return
     }
 
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    
     axios.get('/auth/me')
       .then(res => {
-        const role = res.data.role
-        if (role === 'admin' || role === 'leader') {
-          setUser(res.data)
+        const u = res.data
+        if (u.role === 'admin' || u.role === 'leader') {
+          setUser(u)
         } else {
-          console.warn('[AUTH] Role not admin/leader:', role)
           localStorage.removeItem('admin_token')
+          delete axios.defaults.headers.common['Authorization']
         }
       })
-      .catch(err => {
-        const status = err.response?.status
-        console.error('[AUTH] /auth/me failed:', status, err.response?.data?.detail || err.message)
-        // Only remove token on actual 401, not network errors
-        if (status === 401) {
-          localStorage.removeItem('admin_token')
-        }
+      .catch(() => {
+        localStorage.removeItem('admin_token')
+        delete axios.defaults.headers.common['Authorization']
       })
-      .finally(() => {
-        setLoading(false)
-        setAuthChecked(true)
-      })
+      .finally(() => setLoading(false))
   }, [])
 
   const login = async (email, password) => {
     const res = await axios.post('/auth/login', { email, password })
     const token = res.data.access_token
     localStorage.setItem('admin_token', token)
-
-    // Set header for subsequent requests
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-
+    
     const userRes = await axios.get('/auth/me')
     setUser(userRes.data)
-    return res.data
+    return userRes.data
   }
 
   const logout = () => {
@@ -61,7 +52,7 @@ export const AdminAuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, authChecked }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )

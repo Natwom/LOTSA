@@ -11,12 +11,9 @@ instance.interceptors.request.use((config) => {
   return config
 })
 
-// DO NOT do hard redirects here — let the auth context handle 401s
 instance.interceptors.response.use(
   (response) => response,
-  (error) => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
 export default instance
