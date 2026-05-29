@@ -9,17 +9,23 @@ import ManageAnnouncements from './pages/ManageAnnouncements'
 import ManageEvents from './pages/ManageEvents'
 import ManageElections from './pages/ManageElections'
 import ManageComplaints from './pages/ManageComplaints'
+import ManageLeaders from './pages/ManageLeaders'
+import ManageMembership from './pages/ManageMembership'
+import ManageSettings from './pages/ManageSettings'
+import ManageTerms from './pages/ManageTerms'
 import AdminChat from './pages/AdminChat'
 import Reports from './pages/Reports'
+import ManageDocuments from './pages/ManageDocuments'
+import ManageContributions from './pages/ManageContributions'
 
 function App() {
   return (
     <AdminAuthProvider>
       <Router>
         <Routes>
-          {/* Public login route */}
+          {/* Public login */}
           <Route path="/admin/login" element={<AdminLogin />} />
-          
+
           {/* Protected admin routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AdminLayout />}>
@@ -29,14 +35,19 @@ function App() {
               <Route path="/admin/events" element={<ManageEvents />} />
               <Route path="/admin/elections" element={<ManageElections />} />
               <Route path="/admin/complaints" element={<ManageComplaints />} />
+              <Route path="/admin/leaders" element={<ManageLeaders />} />
+              <Route path="/admin/membership" element={<ManageMembership />} />
+              <Route path="/admin/settings" element={<ManageSettings />} />
+              <Route path="/admin/terms" element={<ManageTerms />} />
               <Route path="/admin/chat" element={<AdminChat />} />
               <Route path="/admin/reports" element={<Reports />} />
+              <Route path="/admin/documents" element={<ManageDocuments />} />
+              <Route path="/admin/contributions" element={<ManageContributions />} />
               <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             </Route>
           </Route>
 
-          {/* Root redirect */}
-          <Route path="/" element={<Navigate to="/admin/login" replace />} />
+          {/* Everything else → login */}
           <Route path="*" element={<Navigate to="/admin/login" replace />} />
         </Routes>
       </Router>

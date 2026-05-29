@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AdminAuthContext'
-import { Eye, EyeOff, Shield, ArrowRight } from 'lucide-react'
+import { Eye, EyeOff, Shield, ArrowRight, Loader2 } from 'lucide-react'
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
@@ -9,11 +9,12 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
-  
+  const [showSplash, setShowSplash] = useState(false)
+
   const { user, login, loading } = useAuth()
   const navigate = useNavigate()
 
-  // If already authenticated, go straight to dashboard
+  // If already authenticated, go to dashboard
   useEffect(() => {
     if (!loading && user && (user.role === 'admin' || user.role === 'leader')) {
       navigate('/admin/dashboard', { replace: true })
@@ -24,28 +25,45 @@ export default function AdminLogin() {
     e.preventDefault()
     setError('')
     setIsLoggingIn(true)
-    
+
     try {
       const u = await login(email, password)
       if (u.role === 'admin' || u.role === 'leader') {
-        navigate('/admin/dashboard', { replace: true })
+        // Show splash screen before redirecting
+        setShowSplash(true)
+        setTimeout(() => {
+          navigate('/admin/dashboard', { replace: true })
+        }, 1500) // 1.5s splash
       } else {
         setError('Access denied. Admin privileges required.')
+        setIsLoggingIn(false)
       }
     } catch (err) {
       const msg = err.response?.data?.detail || err.message || 'Login failed'
       setError(msg)
-    } finally {
       setIsLoggingIn(false)
     }
   }
 
-  // While checking existing session, show loading (prevents flash of login form)
+  // Splash screen after successful login
+  if (showSplash) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6" />
+          <h2 className="text-xl font-semibold text-white mb-2">Welcome back, {user?.profile?.full_name || 'Admin'}</h2>
+          <p className="text-slate-400">Checking credentials and loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Loading existing session check
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4 text-blue-500" />
           <p className="text-slate-400">Checking session...</p>
         </div>
       </div>
@@ -111,7 +129,7 @@ export default function AdminLogin() {
             >
               {isLoggingIn ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Signing in...
                 </>
               ) : (
