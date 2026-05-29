@@ -14,7 +14,7 @@ export default function AdminLogin() {
   const { user, login, loading } = useAuth()
   const navigate = useNavigate()
 
-  // If already authenticated, go to dashboard
+  // If already authenticated, skip login entirely
   useEffect(() => {
     if (!loading && user && (user.role === 'admin' || user.role === 'leader')) {
       navigate('/admin/dashboard', { replace: true })
@@ -33,7 +33,7 @@ export default function AdminLogin() {
         setShowSplash(true)
         setTimeout(() => {
           navigate('/admin/dashboard', { replace: true })
-        }, 1500) // 1.5s splash
+        }, 1500)
       } else {
         setError('Access denied. Admin privileges required.')
         setIsLoggingIn(false)
@@ -45,7 +45,7 @@ export default function AdminLogin() {
     }
   }
 
-  // Splash screen after successful login
+  // Splash screen shown ONLY after successful login
   if (showSplash) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
@@ -58,7 +58,7 @@ export default function AdminLogin() {
     )
   }
 
-  // Loading existing session check
+  // Checking existing session on first visit
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
