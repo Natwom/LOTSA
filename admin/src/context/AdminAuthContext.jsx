@@ -6,30 +6,48 @@ const AuthContext = createContext(null)
 export const AdminAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token')
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      axios.get('/auth/me')
-        .then(res => {
-          if (res.data.role === 'admin' || res.data.role === 'leader') {
-            setUser(res.data)
-          } else {
-            localStorage.removeItem('admin_token')
-          }
-        })
-        .catch(() => localStorage.removeItem('admin_token'))
-        .finally(() => setLoading(false))
-    } else {
+    if (!token) {
       setLoading(false)
+      setAuthChecked(true)
+      return
     }
+
+    axios.get('/auth/me')
+      .then(res => {
+        const role = res.data.role
+        if (role === 'admin' || role === 'leader') {
+          setUser(res.data)
+        } else {
+          console.warn('[AUTH] Role not admin/leader:', role)
+          localStorage.removeItem('admin_token')
+        }
+      })
+      .catch(err => {
+        const status = err.response?.status
+        console.error('[AUTH] /auth/me failed:', status, err.response?.data?.detail || err.message)
+        // Only remove token on actual 401, not network errors
+        if (status === 401) {
+          localStorage.removeItem('admin_token')
+        }
+      })
+      .finally(() => {
+        setLoading(false)
+        setAuthChecked(true)
+      })
   }, [])
 
   const login = async (email, password) => {
     const res = await axios.post('/auth/login', { email, password })
-    localStorage.setItem('admin_token', res.data.access_token)
-    axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.access_token}`
+    const token = res.data.access_token
+    localStorage.setItem('admin_token', token)
+
+    // Set header for subsequent requests
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
     const userRes = await axios.get('/auth/me')
     setUser(userRes.data)
     return res.data
@@ -43,7 +61,7 @@ export const AdminAuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, authChecked }}>
       {children}
     </AuthContext.Provider>
   )

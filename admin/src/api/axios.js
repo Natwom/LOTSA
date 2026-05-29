@@ -11,13 +11,10 @@ instance.interceptors.request.use((config) => {
   return config
 })
 
+// DO NOT do hard redirects here — let the auth context handle 401s
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('admin_token')
-      window.location.href = '/admin/login'
-    }
     return Promise.reject(error)
   }
 )
