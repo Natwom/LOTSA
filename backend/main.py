@@ -17,9 +17,34 @@ try:
 except Exception as e:
     print(f"⚠️ WARNING: Could not create tables: {e}")
 
+# Seed default admin if none exists
+def seed_admin():
+    db = Session(bind=engine)
+    try:
+        admin = db.query(User).filter(User.email == "admin@lotsa.ac.ke").first()
+        if not admin:
+            admin = User(
+                email="admin@lotsa.ac.ke",
+                password_hash=auth_utils.get_password_hash("Admin@123"),
+                role=UserRole.ADMIN,
+                is_active=True
+            )
+            db.add(admin)
+            db.commit()
+            print("✅ Default admin created: admin@lotsa.ac.ke / Admin@123")
+        else:
+            print("ℹ️ Admin user already exists")
+    except Exception as e:
+        db.rollback()
+        print(f"⚠️ Admin seed error: {e}")
+    finally:
+        db.close()
+
+seed_admin()
+
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
-# CORS
+# CORS — allow all origins for now
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
