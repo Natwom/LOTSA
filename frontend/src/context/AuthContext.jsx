@@ -47,9 +47,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       axios.get('/auth/me')
         .then(res => setUser(res.data))
-        .catch(() => localStorage.removeItem('token'))
+        .catch(() => {
+          localStorage.removeItem('token')
+          delete axios.defaults.headers.common['Authorization']
+        })
         .finally(() => setLoading(false))
     } else {
       setLoading(false)
@@ -63,7 +67,6 @@ export const AuthProvider = ({ children }) => {
     axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.access_token}`
     const userRes = await axios.get('/auth/me')
     setUser(userRes.data)
-    // Load server settings if available
     try {
       const settingsRes = await axios.get('/settings/me')
       if (settingsRes.data) {
@@ -80,7 +83,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('role')
     delete axios.defaults.headers.common['Authorization']
     setUser(null)
-    window.location.href = '/login'
+    // HashRouter fix: include /#/ prefix so static hosting never sees the route
+    window.location.href = '/#/login'
   }
 
   const updateSettings = async (newSettings) => {

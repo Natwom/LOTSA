@@ -48,7 +48,8 @@ export const AdminAuthProvider = ({ children }) => {
     localStorage.removeItem('admin_token')
     delete axios.defaults.headers.common['Authorization']
     setUser(null)
-    window.location.href = '/admin/login'
+    // HashRouter fix: include /#/ prefix so static hosting never sees the route
+    window.location.href = '/#/admin/login'
   }
 
   return (
