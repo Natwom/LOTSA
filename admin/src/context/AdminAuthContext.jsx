@@ -16,7 +16,7 @@ export const AdminAuthProvider = ({ children }) => {
 
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
     
-    axios.get('/auth/me')
+    axios.get('auth/me')
       .then(res => {
         const u = res.data
         if (u.role === 'admin' || u.role === 'leader') {
@@ -34,12 +34,12 @@ export const AdminAuthProvider = ({ children }) => {
   }, [])
 
   const login = async (email, password) => {
-    const res = await axios.post('/auth/login', { email, password })
+    const res = await axios.post('auth/login', { email, password })
     const token = res.data.access_token
     localStorage.setItem('admin_token', token)
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
     
-    const userRes = await axios.get('/auth/me')
+    const userRes = await axios.get('auth/me')
     setUser(userRes.data)
     return userRes.data
   }
@@ -48,7 +48,6 @@ export const AdminAuthProvider = ({ children }) => {
     localStorage.removeItem('admin_token')
     delete axios.defaults.headers.common['Authorization']
     setUser(null)
-    // HashRouter fix: include /#/ prefix so static hosting never sees the route
     window.location.href = '/#/admin/login'
   }
 
