@@ -150,6 +150,7 @@ class Candidate(Base):
     student_id = Column(Integer, ForeignKey("student_profiles.id"))
     manifesto = Column(Text)
     photo_url = Column(String)
+    photo_public_id = Column(String, nullable=True)
     election = relationship("Election", back_populates="candidates")
     student = relationship("StudentProfile", back_populates="candidates")
     votes = relationship("Vote", back_populates="candidate")
@@ -240,13 +241,12 @@ class Leader(Base):
     position = Column(String, nullable=False)
     bio = Column(Text, nullable=True)
     photo_url = Column(String, nullable=True)
+    photo_public_id = Column(String, nullable=True)
     display_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     user = relationship("User")
-
-# ==================== DOCUMENTS ====================
 
 class Document(Base):
     __tablename__ = "documents"
@@ -255,6 +255,7 @@ class Document(Base):
     description = Column(Text, nullable=True)
     file_type = Column(Enum(DocumentType), default=DocumentType.GENERAL)
     file_url = Column(String, nullable=False)
+    file_public_id = Column(String, nullable=True)
     file_name = Column(String, nullable=False)
     file_size = Column(Integer, nullable=True)
     uploaded_by = Column(Integer, ForeignKey("users.id"))
@@ -262,8 +263,6 @@ class Document(Base):
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     
     uploader = relationship("User")
-
-# ==================== CONTRIBUTIONS ====================
 
 class ContributionPeriod(Base):
     __tablename__ = "contribution_periods"
@@ -298,8 +297,6 @@ class ContributionPayment(Base):
     verifier = relationship("User", foreign_keys=[verified_by])
     
     __table_args__ = (UniqueConstraint('user_id', 'period_id', name='_user_period_payment_uc'),)
-
-# ==================== SETTINGS & TERMS MODELS ====================
 
 class UserSettings(Base):
     __tablename__ = "user_settings"

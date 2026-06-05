@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 import re
 import traceback
@@ -75,8 +74,6 @@ app.include_router(settings_router.router, prefix="/api/settings", tags=["settin
 app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
-
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 def root():

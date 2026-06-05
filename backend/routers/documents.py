@@ -2,14 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-import shutil
 from pathlib import Path
 from .. import models, schemas, database, auth
+from ..cloudinary_utils import upload_file, delete_file
 
 router = APIRouter()
-
-UPLOAD_DIR = Path("uploads/documents")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.post("/upload")
 async def upload_document(
@@ -25,21 +22,16 @@ async def upload_document(
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {allowed_extensions}")
     
-    safe_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
-    file_path = UPLOAD_DIR / safe_filename
-    
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    file_size = file_path.stat().st_size
+    upload = upload_file(file, folder="lotsa/documents", resource_type="raw")
     
     db_doc = models.Document(
         title=title,
         description=description,
         file_type=models.DocumentType(file_type),
-        file_url=f"/uploads/documents/{safe_filename}",
+        file_url=upload["url"],
+        file_public_id=upload["public_id"],
         file_name=file.filename,
-        file_size=file_size,
+        file_size=0,
         uploaded_by=admin.id
     )
     db.add(db_doc)
@@ -79,12 +71,8 @@ def delete_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    try:
-        file_path = Path("uploads") / doc.file_url.replace("/uploads/", "")
-        if file_path.exists():
-            file_path.unlink()
-    except Exception:
-        pass
+    if doc.file_public_id:
+        delete_file(doc.file_public_id)
     
     db.delete(doc)
     db.commit()

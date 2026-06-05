@@ -2,15 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from datetime import datetime
-from pathlib import Path
-import shutil
 from sqlalchemy import func
 from .. import models, schemas, database, auth
+from ..cloudinary_utils import upload_file, delete_file
 
 router = APIRouter()
-
-UPLOAD_DIR = Path("uploads/candidates")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.get("/", response_model=List[schemas.ElectionOut])
 def list_elections(active: bool = False, db: Session = Depends(database.get_db)):
@@ -76,23 +72,18 @@ async def add_candidate(
         raise HTTPException(status_code=404, detail="Student not found")
 
     photo_url = None
+    photo_public_id = None
     if photo:
-        allowed = {'.jpg', '.jpeg', '.png', '.webp'}
-        ext = Path(photo.filename).suffix.lower()
-        if ext not in allowed:
-            raise HTTPException(status_code=400, detail=f"Invalid image type. Allowed: {allowed}")
-        
-        safe_name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{photo.filename}"
-        file_path = UPLOAD_DIR / safe_name
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
-        photo_url = f"/uploads/candidates/{safe_name}"
+        upload = upload_file(photo, folder="lotsa/candidates")
+        photo_url = upload["url"]
+        photo_public_id = upload["public_id"]
 
     db_candidate = models.Candidate(
         election_id=election_id,
         student_id=student_id,
         manifesto=manifesto,
-        photo_url=photo_url
+        photo_url=photo_url,
+        photo_public_id=photo_public_id
     )
     db.add(db_candidate)
     db.commit()
@@ -113,13 +104,8 @@ def remove_candidate(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    if candidate.photo_url:
-        try:
-            fp = Path("uploads") / candidate.photo_url.replace("/uploads/", "")
-            if fp.exists():
-                fp.unlink()
-        except Exception:
-            pass
+    if candidate.photo_public_id:
+        delete_file(candidate.photo_public_id)
 
     db.delete(candidate)
     db.commit()

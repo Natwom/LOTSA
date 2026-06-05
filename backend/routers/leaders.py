@@ -1,14 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
-import shutil
-import os
 from .. import models, schemas, database, auth
+from ..cloudinary_utils import upload_file, delete_file
 
 router = APIRouter()
-
-UPLOAD_DIR = "uploads/leaders"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.get("/", response_model=List[schemas.LeaderOut])
 def list_leaders(active_only: bool = True, db: Session = Depends(database.get_db)):
@@ -44,14 +40,12 @@ def upload_photo(
     if not leader:
         raise HTTPException(status_code=404, detail="Leader not found")
     
-    file_ext = file.filename.split(".")[-1]
-    filename = f"leader_{leader_id}.{file_ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
+    if leader.photo_public_id:
+        delete_file(leader.photo_public_id)
     
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    leader.photo_url = f"/uploads/leaders/{filename}"
+    upload = upload_file(file, folder="lotsa/leaders")
+    leader.photo_url = upload["url"]
+    leader.photo_public_id = upload["public_id"]
     db.commit()
     return {"photo_url": leader.photo_url}
 
@@ -81,6 +75,10 @@ def delete_leader(
     leader = db.query(models.Leader).filter(models.Leader.id == leader_id).first()
     if not leader:
         raise HTTPException(status_code=404, detail="Not found")
+    
+    if leader.photo_public_id:
+        delete_file(leader.photo_public_id)
+    
     leader.is_active = False
     db.commit()
     return {"message": "Leader removed"}

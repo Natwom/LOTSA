@@ -3,7 +3,6 @@ import cloudinary
 import cloudinary.uploader
 from fastapi import UploadFile, HTTPException
 
-# Configure Cloudinary
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
@@ -11,32 +10,27 @@ cloudinary.config(
     secure=True
 )
 
-ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "pdf"}
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+ALLOWED_DOCUMENT_EXTENSIONS = {"pdf", "doc", "docx", "xls", "xlsx", "csv", "txt"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
-def upload_file(file: UploadFile, folder: str = "lotsa") -> dict:
-    """
-    Upload a file to Cloudinary.
-    Returns: {"url": "https://...", "public_id": "lotsa/abc123"}
-    """
-    # Validate extension
+def upload_file(file: UploadFile, folder: str = "lotsa", resource_type: str = "auto") -> dict:
     ext = file.filename.split(".")[-1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {ALLOWED_EXTENSIONS}")
+    allowed = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_DOCUMENT_EXTENSIONS
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {allowed}")
     
-    # Validate size (read first chunk to check)
     contents = file.file.read()
     if len(contents) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="File too large. Max 10MB")
     
-    # Reset file pointer for upload
     file.file.seek(0)
     
     try:
         result = cloudinary.uploader.upload(
             file.file,
             folder=folder,
-            resource_type="auto"  # handles images, PDFs, etc.
+            resource_type=resource_type
         )
         return {
             "url": result.get("secure_url"),
@@ -46,7 +40,8 @@ def upload_file(file: UploadFile, folder: str = "lotsa") -> dict:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 def delete_file(public_id: str) -> bool:
-    """Delete a file from Cloudinary by public_id."""
+    if not public_id:
+        return False
     try:
         result = cloudinary.uploader.destroy(public_id)
         return result.get("result") == "ok"
