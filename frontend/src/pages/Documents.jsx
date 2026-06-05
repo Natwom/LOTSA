@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import { FileText, Download, Calendar, Database, ScrollText, File } from 'lucide-react';
 
+// Helper: handles both Cloudinary URLs and old local paths
+const getFileUrl = (fileUrl) => {
+  if (!fileUrl) return '#';
+  if (fileUrl.startsWith('http')) return fileUrl;
+  return `https://lotsa-api.onrender.com${fileUrl}`;
+};
+
 export default function Documents() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +84,7 @@ export default function Documents() {
               <span>{doc.file_name}</span>
             </div>
             <a
-              href={`http://localhost:8000${doc.file_url}`}
+              href={getFileUrl(doc.file_url)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"

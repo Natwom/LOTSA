@@ -3,6 +3,13 @@ import axios from '../api/axios';
 import DataTable from '../components/DataTable';
 import { Plus, FileText, Trash2, Eye, Download, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 
+// Helper: handles both Cloudinary URLs and old local paths
+const getFileUrl = (fileUrl) => {
+  if (!fileUrl) return '#';
+  if (fileUrl.startsWith('http')) return fileUrl;
+  return `https://lotsa-api.onrender.com${fileUrl}`;
+};
+
 export default function ManageDocuments() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -195,7 +202,7 @@ export default function ManageDocuments() {
         actions={(row) => (
           <>
             <a
-              href={`http://localhost:8000${row.file_url}`}
+              href={getFileUrl(row.file_url)}
               target="_blank"
               rel="noopener noreferrer"
               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
