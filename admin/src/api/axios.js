@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: 'https://lotsa-api.onrender.com/api',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -13,7 +13,14 @@ instance.interceptors.request.use((config) => {
 
 instance.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  (error) => {
+    // Auto-redirect to login on 401
+    if (error.response?.status === 401) {
+      localStorage.removeItem('admin_token')
+      window.location.href = '/#/admin/login'
+    }
+    return Promise.reject(error)
+  }
 )
 
 export default instance
