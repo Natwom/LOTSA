@@ -22,8 +22,8 @@ async def upload_document(
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {allowed_extensions}")
     
-    # Use "auto" instead of "raw" — allows PDF preview in browser
-    upload = upload_file(file, folder="lotsa/documents", resource_type="auto")
+    # resource_type is auto-detected in cloudinary_utils (raw for PDFs/docs, auto for images)
+    upload = upload_file(file, folder="lotsa/documents")
     
     db_doc = models.Document(
         title=title,
