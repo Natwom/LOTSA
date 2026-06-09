@@ -23,35 +23,45 @@ export default function Chat() {
     fetchUsers()
 
     const token = localStorage.getItem('token')
-    const WS_BASE = import.meta.env.VITE_WS_URL || 'wss://lotsa.onrender.com/api/chats'
+    // BUG FIX #1: Correct domain is lotsa-api.onrender.com, not lotsa.onrender.com
+    const WS_BASE = 'wss://lotsa-api.onrender.com'
     
     const connect = () => {
-      ws.current = new WebSocket(`${WS_BASE}/ws?token=${token}`)
+      // BUG FIX #2: Correct path is /api/chats/ws, not /ws appended to /api/chats
+      ws.current = new WebSocket(`${WS_BASE}/api/chats/ws?token=${token}`)
 
-      ws.current.onopen = () => console.log('WebSocket connected')
+      ws.current.onopen = () => console.log('✅ WebSocket connected')
       
       ws.current.onmessage = (event) => {
         const data = JSON.parse(event.data)
+        console.log('📨 Received:', data)
         if (data.type === 'message') {
           setMessages(prev => [...prev, data.payload])
           fetchConversations()
         }
       }
 
-      ws.current.onclose = () => {
-        console.log('WebSocket closed, reconnecting in 3s...')
-        setTimeout(connect, 3000)
+      ws.current.onclose = (e) => {
+        console.log('❌ WebSocket closed:', e.code, e.reason)
+        // BUG FIX #3: Don't reconnect on auth failure (code 1008)
+        if (e.code !== 1008) {
+          setTimeout(connect, 3000)
+        }
       }
 
       ws.current.onerror = (err) => {
         console.error('WebSocket error:', err)
-        ws.current?.close()
       }
     }
 
     connect()
 
-    return () => ws.current?.close()
+    return () => {
+      if (ws.current) {
+        ws.current.onclose = null
+        ws.current.close()
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -125,10 +135,17 @@ export default function Chat() {
   const sendMessage = (e) => {
     e.preventDefault()
     if (!input.trim() || !activeConv) return
+    
+    // BUG FIX #4: Check connection before sending
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      alert('Connection lost. Please refresh the page.')
+      return
+    }
+    
     ws.current.send(JSON.stringify({
       type: 'send_message',
       conversation_id: activeConv,
-      content: input
+      content: input.trim()
     }))
     setInput('')
   }

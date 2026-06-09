@@ -1,13 +1,17 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 import re
 import traceback
+import json
 from datetime import datetime, timedelta
 
 from .database import engine, get_db
-from .models import Base, User, UserRole, StudentProfile
+from .models import Base, User, UserRole, StudentProfile, Conversation, Message
 from . import schemas, auth as auth_utils
+from .config import SECRET_KEY, ALGORITHM
+from .websocket_manager import manager
+from jose import jwt as jose_jwt
 
 # Create tables
 try:
@@ -74,6 +78,64 @@ app.include_router(settings_router.router, prefix="/api/settings", tags=["settin
 app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
+
+# WebSocket endpoint at app level (NOT in router)
+@app.websocket("/api/chats/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
+    try:
+        payload = jose_jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = int(payload.get("sub"))
+    except Exception:
+        await websocket.close(code=1008)
+        return
+
+    await manager.connect(websocket, user_id)
+    db = Session(bind=engine)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            msg = json.loads(data)
+            if msg.get("type") == "send_message":
+                conv_id = msg.get("conversation_id")
+                content = msg.get("content")
+                
+                # Save message
+                db_msg = Message(conversation_id=conv_id, sender_id=user_id, content=content)
+                db.add(db_msg)
+                db.commit()
+                db.refresh(db_msg)
+                
+                # Fetch sender info
+                sender = db.query(User).options(
+                    joinedload(User.profile)
+                ).filter(User.id == user_id).first()
+                
+                sender_name = "Unknown"
+                if sender:
+                    if sender.profile and sender.profile.full_name:
+                        sender_name = sender.profile.full_name
+                    elif sender.email:
+                        sender_name = sender.email
+                
+                conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
+                if conv:
+                    pids = [p.id for p in conv.participants]
+                    await manager.broadcast({
+                        "type": "message",
+                        "payload": {
+                            "id": db_msg.id,
+                            "conversation_id": conv_id,
+                            "sender_id": user_id,
+                            "sender_name": sender_name,
+                            "content": content,
+                            "created_at": db_msg.created_at.isoformat() if db_msg.created_at else None
+                        }
+                    }, pids)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        manager.disconnect(user_id)
+        db.close()
 
 @app.get("/")
 def root():

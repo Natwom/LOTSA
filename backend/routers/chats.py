@@ -1,11 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List
-from jose import jwt as jose_jwt
 from .. import models, schemas, database, auth as auth_utils
-from ..config import SECRET_KEY, ALGORITHM
-from ..websocket_manager import manager
-import json
 
 router = APIRouter()
 
@@ -22,7 +18,6 @@ def get_conversations(
     for conv in convs:
         last_msg = db.query(models.Message).filter_by(conversation_id=conv.id).order_by(models.Message.created_at.desc()).first()
         
-        # For 1-on-1 chats, find the other person's name
         display_name = conv.name
         if not conv.is_group and not conv.name:
             other = next((p for p in conv.participants if p.id != current_user.id), None)
@@ -86,7 +81,6 @@ def create_conversation(
     db.commit()
     db.refresh(conv)
 
-    # Set display name for DM
     display_name = conv.name
     if not conv.is_group and not conv.name:
         other = next((p for p in conv.participants if p.id != current_user.id), None)
@@ -134,7 +128,6 @@ def create_group(
         "last_message": None,
     }
 
-# REMOVED response_model so sender_name isn't stripped by Pydantic
 @router.get("/conversations/{conv_id}/messages")
 def get_messages(
     conv_id: int,
@@ -176,56 +169,3 @@ def get_messages(
             "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
         })
     return result
-
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(...), db: Session = Depends(database.get_db)):
-    try:
-        payload = jose_jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload.get("sub"))
-    except Exception:
-        await websocket.close(code=1008)
-        return
-
-    await manager.connect(websocket, user_id)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            msg = json.loads(data)
-            if msg.get("type") == "send_message":
-                conv_id = msg.get("conversation_id")
-                content = msg.get("content")
-                
-                # Save message
-                db_msg = models.Message(conversation_id=conv_id, sender_id=user_id, content=content)
-                db.add(db_msg)
-                db.commit()
-                db.refresh(db_msg)
-                
-                # Fetch sender info fresh from DB for every message
-                sender = db.query(models.User).options(
-                    joinedload(models.User.profile)
-                ).filter(models.User.id == user_id).first()
-                
-                sender_name = "Unknown"
-                if sender:
-                    if sender.profile and sender.profile.full_name:
-                        sender_name = sender.profile.full_name
-                    elif sender.email:
-                        sender_name = sender.email
-                
-                conv = db.query(models.Conversation).filter(models.Conversation.id == conv_id).first()
-                if conv:
-                    pids = [p.id for p in conv.participants]
-                    await manager.broadcast({
-                        "type": "message",
-                        "payload": {
-                            "id": db_msg.id,
-                            "conversation_id": conv_id,
-                            "sender_id": user_id,
-                            "sender_name": sender_name,
-                            "content": content,
-                            "created_at": db_msg.created_at.isoformat() if db_msg.created_at else None
-                        }
-                    }, pids)
-    except WebSocketDisconnect:
-        manager.disconnect(user_id)
