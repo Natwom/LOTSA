@@ -15,11 +15,18 @@ export default function Leaders() {
 
   const positionColors = {
     'Chairperson': 'bg-blue-600',
+    'President': 'bg-blue-600',
     'Secretary': 'bg-purple-600',
+    'Secretary General': 'bg-purple-600',
     'Treasurer': 'bg-green-600',
     'Organizing Secretary': 'bg-orange-600',
     'Academic Rep': 'bg-pink-600',
     'Welfare Rep': 'bg-teal-600',
+    'Patron': 'bg-indigo-600',
+    'Deputy Patron': 'bg-indigo-500',
+    'Deputy President': 'bg-blue-500',
+    'High school representative': 'bg-yellow-600',
+    'Games Director': 'bg-red-600',
   };
 
   return (
@@ -42,7 +49,7 @@ export default function Leaders() {
               <div className="relative h-64 bg-gray-100 overflow-hidden">
                 {leader.photo_url ? (
                   <img
-                    src={`http://localhost:8000${leader.photo_url}`}
+                    src={leader.photo_url}
                     alt={leader.user?.profile?.full_name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />

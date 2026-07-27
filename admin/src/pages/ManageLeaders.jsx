@@ -55,7 +55,7 @@ export default function ManageLeaders() {
       key: 'photo_url',
       label: 'Photo',
       render: (val) => val ? (
-        <img src={`http://localhost:8000${val}`} alt="" className="w-12 h-12 rounded-full object-cover" />
+        <img src={val} alt="" className="w-12 h-12 rounded-full object-cover" />
       ) : (
         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-400"><Award size={20} /></div>
       )
@@ -121,17 +121,17 @@ export default function ManageLeaders() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 <option value="">Select position...</option>
-                <option value="Chairperson">President</option>
-                <option value="Secretary">Secretary General</option>
+                <option value="President">President</option>
+                <option value="Secretary General">Secretary General</option>
                 <option value="Treasurer">Treasurer</option>
                 <option value="Organizing Secretary">Organizing Secretary</option>
                 <option value="Academic Rep">Academic Rep</option>
                 <option value="Welfare Rep">Welfare Rep</option>
-                <option value="Welfare Rep">Patron</option>
-                <option value="Welfare Rep">Deputy Patron</option>
-                <option value="Welfare Rep">Deputy President</option>
-                <option value="Welfare Rep">High school representative</option>
-                <option value="Welfare Rep">Games Director</option>
+                <option value="Patron">Patron</option>
+                <option value="Deputy Patron">Deputy Patron</option>
+                <option value="Deputy President">Deputy President</option>
+                <option value="High school representative">High school representative</option>
+                <option value="Games Director">Games Director</option>
               </select>
             </div>
             <div>
