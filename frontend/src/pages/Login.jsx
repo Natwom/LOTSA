@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { 
-  Eye, EyeOff, ArrowRight, GraduationCap, Sparkles, 
-  Mail, Lock, AlertTriangle, Zap 
+  Eye, EyeOff, ArrowRight, GraduationCap, 
+  Mail, Lock, AlertTriangle, ShieldCheck 
 } from 'lucide-react'
 
 export default function Login() {
@@ -30,48 +30,49 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-accent-600 flex items-center justify-center p-4">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-accent-500/20 rounded-full blur-3xl animate-float animation-delay-500" />
-        <div className="absolute top-[40%] left-[60%] w-[300px] h-[300px] bg-primary-400/10 rounded-full blur-2xl animate-float animation-delay-300" />
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.03%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden p-4">
+      {/* Background Decorations */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 -right-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-24 left-1/3 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl"></div>
+        {/* Dot pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+          backgroundSize: '24px 24px'
+        }}></div>
       </div>
 
-      <div className="relative w-full max-w-md animate-slide-up">
-        {/* Logo Section */}
+      <div className="relative w-full max-w-md">
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-xl rounded-2xl mb-4 shadow-xl ring-1 ring-white/30">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl mb-4 ring-1 ring-white/20 shadow-xl">
             <GraduationCap size={32} className="text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">LOTSA CONNECT</h1>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <Sparkles size={14} className="text-primary-200" />
-            <p className="text-primary-100 text-sm font-medium">LOTUBAE Student Association Portal</p>
-            <Sparkles size={14} className="text-primary-200" />
-          </div>
+          <p className="text-blue-200/80 text-sm font-medium mt-2">
+            LOTUBAE Student Association Portal
+          </p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white/95 dark:bg-dark-card/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-black/20 border border-white/20 p-8">
+        {/* Card */}
+        <div className="bg-white rounded-2xl shadow-2xl shadow-black/30 p-8 border border-white/10">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Welcome Back! 👋</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Sign in to access your student dashboard</p>
+            <h2 className="text-xl font-bold text-gray-900">Welcome Back</h2>
+            <p className="text-sm text-gray-500 mt-1">Sign in to access your student dashboard</p>
           </div>
 
           {error && (
-            <div className="mb-5 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-start gap-3 animate-fade-in">
+            <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
               <AlertTriangle size={18} className="text-red-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <p className="text-sm text-red-600 font-medium">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Field */}
-            <div className="space-y-1.5">
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
@@ -81,19 +82,19 @@ export default function Login() {
                   required 
                   value={email} 
                   onChange={e => setEmail(e.target.value)} 
-                  placeholder="student@lotsa.ac.ke"
-                  className="w-full pl-11 pr-4 py-3 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200"
+                  placeholder="you@student.ac.ke"
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
                 />
               </div>
             </div>
 
-            {/* Password Field */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {/* Password */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-bold text-gray-700">
                   Password
                 </label>
-                <Link to="/forgot-password" className="text-xs text-primary-600 hover:text-primary-700 font-medium">
+                <Link to="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-semibold">
                   Forgot password?
                 </Link>
               </div>
@@ -104,13 +105,13 @@ export default function Login() {
                   required 
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
-                  placeholder="Enter your password"
-                  className="w-full pl-11 pr-12 py-3 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all duration-200"
+                  placeholder="••••••••"
+                  className="w-full pl-11 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
                 />
                 <button 
                   type="button" 
                   onClick={() => setShowPassword(!showPassword)} 
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -118,22 +119,21 @@ export default function Login() {
             </div>
 
             {/* Remember Me */}
-            <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2.5 cursor-pointer group">
               <input 
                 type="checkbox" 
-                id="remember"
-                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
               />
-              <label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+              <span className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors">
                 Keep me signed in for 30 days
-              </label>
-            </div>
+              </span>
+            </label>
 
-            {/* Submit Button */}
+            {/* Submit */}
             <button 
               type="submit" 
               disabled={isLoading}
-              className="w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white py-3.5 rounded-xl font-semibold shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -148,35 +148,35 @@ export default function Login() {
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200 dark:border-dark-border" />
+              <div className="w-full border-t border-gray-100"></div>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white dark:bg-dark-card text-gray-500">or</span>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-3 bg-white text-gray-400 font-medium uppercase tracking-wider">or</span>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="text-center space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-center space-y-3">
+            <p className="text-sm text-gray-600">
               Don't have an account?{' '}
-              <Link to="/register" className="text-primary-600 hover:text-primary-700 font-semibold hover:underline transition-colors">
-                Create one now
+              <Link to="/register" className="text-blue-600 hover:text-blue-700 font-bold hover:underline transition-colors">
+                Register now
               </Link>
             </p>
-            <div className="flex items-center justify-center gap-1 text-xs text-gray-400">
-              <Zap size={12} />
+            <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
+              <ShieldCheck size={12} />
               <span>Secure, encrypted, and student-verified</span>
             </div>
           </div>
         </div>
 
         {/* Bottom Links */}
-        <div className="mt-6 flex items-center justify-center gap-4 text-sm">
-          <Link to="/terms" className="text-white/70 hover:text-white transition-colors">Terms</Link>
-          <span className="text-white/30">•</span>
-          <Link to="/" className="text-white/70 hover:text-white transition-colors">Back to Home</Link>
-          <span className="text-white/30">•</span>
-          <span className="text-white/50">© 2024 LOTSA</span>
+        <div className="mt-6 flex items-center justify-center gap-4 text-xs text-white/60">
+          <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+          <span>•</span>
+          <Link to="/" className="hover:text-white transition-colors">Back to Home</Link>
+          <span>•</span>
+          <span>© 2024 LOTSA</span>
         </div>
       </div>
     </div>
