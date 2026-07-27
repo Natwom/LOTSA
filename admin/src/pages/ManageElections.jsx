@@ -306,7 +306,7 @@ export default function ManageElections() {
                   <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
                     {c.photo_url ? (
                       <img
-                        src={`http://localhost:8000${c.photo_url}`}
+                        src={c.photo_url}
                         alt={c.student?.full_name || 'Candidate'}
                         className="w-full h-full object-cover"
                       />
@@ -345,7 +345,7 @@ export default function ManageElections() {
               <div key={r.candidate_id} className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                   {r.photo_url ? (
-                    <img src={`http://localhost:8000${r.photo_url}`} alt="" className="w-full h-full object-cover" />
+                    <img src={r.photo_url} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400"><ImageIcon size={16} /></div>
                   )}

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy import func
@@ -10,20 +10,15 @@ router = APIRouter()
 
 @router.get("/", response_model=List[schemas.ElectionOut])
 def list_elections(active: bool = False, db: Session = Depends(database.get_db)):
-    query = db.query(models.Election)
+    query = db.query(models.Election).options(
+        selectinload(models.Election.candidates).selectinload(models.Candidate.student)
+    )
     if active:
         query = query.filter(
             models.Election.is_active == True,
             models.Election.end_time > datetime.utcnow(),
         )
-    elections = query.order_by(models.Election.created_at.desc()).all()
-
-    for election in elections:
-        election.candidates = db.query(models.Candidate).options(
-            joinedload(models.Candidate.student)
-        ).filter_by(election_id=election.id).all()
-
-    return elections
+    return query.order_by(models.Election.created_at.desc()).all()
 
 @router.post("/", response_model=schemas.ElectionOut)
 def create_election(
@@ -39,7 +34,6 @@ def create_election(
     db.add(db_election)
     db.commit()
     db.refresh(db_election)
-    db_election.candidates = []
     return db_election
 
 @router.get("/{election_id}/candidates", response_model=List[schemas.CandidateOut])
@@ -105,7 +99,7 @@ def remove_candidate(
         raise HTTPException(status_code=404, detail="Candidate not found")
 
     if candidate.photo_public_id:
-        delete_file(candidate.photo_public_id)
+        delete_file(candidate.photo_public_id, resource_type="image")
 
     db.delete(candidate)
     db.commit()
