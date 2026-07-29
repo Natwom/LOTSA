@@ -7,7 +7,20 @@ from .. import models, schemas, database, auth
 
 router = APIRouter()
 
+# ─── Payment Configuration ───
+PAYBILL_NUMBER = "254254"
+ACCOUNT_NUMBER = "12345678"
+
 # ==================== ADMIN ENDPOINTS ====================
+
+@router.get("/payment-config")
+def get_payment_config():
+    """Return universal M-Pesa payment details for contributions"""
+    return {
+        "paybill_number": PAYBILL_NUMBER,
+        "account_number": ACCOUNT_NUMBER,
+        "description": f"Pay via M-Pesa Paybill {PAYBILL_NUMBER}, Account {ACCOUNT_NUMBER}"
+    }
 
 @router.post("/periods", response_model=schemas.ContributionPeriodOut)
 def create_period(

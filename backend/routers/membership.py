@@ -6,6 +6,11 @@ from .. import models, schemas, database, auth
 
 router = APIRouter()
 
+# ─── Payment Configuration ───
+PAYBILL_NUMBER = "254254"
+ACCOUNT_NUMBER = "12345678"
+MEMBERSHIP_AMOUNT = 100
+
 def generate_card_number(db: Session):
     """Generate unique membership card number: LOTSA-XXXXXX"""
     import random
@@ -14,6 +19,16 @@ def generate_card_number(db: Session):
         existing = db.query(models.MembershipCard).filter(models.MembershipCard.card_number == num).first()
         if not existing:
             return num
+
+@router.get("/payment-config")
+def get_payment_config():
+    """Return universal M-Pesa payment details for membership"""
+    return {
+        "paybill_number": PAYBILL_NUMBER,
+        "account_number": ACCOUNT_NUMBER,
+        "amount": MEMBERSHIP_AMOUNT,
+        "description": f"Pay Ksh {MEMBERSHIP_AMOUNT} via M-Pesa Paybill {PAYBILL_NUMBER}, Account {ACCOUNT_NUMBER}"
+    }
 
 @router.get("/my-card", response_model=Optional[schemas.MembershipCardOut])
 def get_my_card(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(database.get_db)):
@@ -67,11 +82,11 @@ def submit_payment(
 
     payment = models.Payment(
         user_id=current_user.id,
-        amount=data.amount,
+        amount=MEMBERSHIP_AMOUNT,
         payment_method=data.payment_method,
         mpesa_receipt=receipt,
         status=models.PaymentStatus.PENDING,
-        description="Membership Card - Ksh 100"
+        description=f"Membership Card - Ksh {MEMBERSHIP_AMOUNT} (Paybill {PAYBILL_NUMBER}, Account {ACCOUNT_NUMBER})"
     )
     db.add(payment)
     db.commit()
@@ -153,10 +168,10 @@ def renew_card(
     
     payment = models.Payment(
         user_id=current_user.id,
-        amount=100,
+        amount=MEMBERSHIP_AMOUNT,
         payment_method="mpesa",
         status=models.PaymentStatus.COMPLETED,
-        description="Membership Card Renewal - Ksh 100"
+        description=f"Membership Card Renewal - Ksh {MEMBERSHIP_AMOUNT} (Paybill {PAYBILL_NUMBER}, Account {ACCOUNT_NUMBER})"
     )
     db.add(payment)
     

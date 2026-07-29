@@ -271,6 +271,20 @@ export default function Contributions() {
                 <X size={18} className="text-gray-500" />
               </button>
             </div>
+
+            {/* Payment Instructions */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <h4 className="font-bold text-amber-800 mb-2 flex items-center gap-2">
+                <Wallet size={16} /> M-Pesa Payment Instructions
+              </h4>
+              <div className="grid grid-cols-2 gap-2 text-sm text-amber-700">
+                <div><span className="font-semibold">Paybill:</span> 254254</div>
+                <div><span className="font-semibold">Account:</span> 12345678</div>
+                <div><span className="font-semibold">Amount:</span> KES {selectedPeriod.amount}</div>
+                <div><span className="font-semibold">Period:</span> {selectedPeriod.title}</div>
+              </div>
+              <p className="text-xs text-amber-600 mt-2">Use these exact details for every contribution payment.</p>
+            </div>
             
             <form onSubmit={handlePay} className="space-y-4">
               <div>

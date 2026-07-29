@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import DataTable from '../components/DataTable';
-import { Plus, Calendar, DollarSign, CheckCircle, XCircle, Users, TrendingUp, Clock } from 'lucide-react';
+import { Plus, Calendar, DollarSign, CheckCircle, XCircle, Users, TrendingUp, Clock, Wallet } from 'lucide-react';
 
 export default function ManageContributions() {
   const [periods, setPeriods] = useState([]);
@@ -114,6 +114,16 @@ export default function ManageContributions() {
         >
           <Plus size={18} /> {showForm ? 'Cancel' : 'New Period'}
         </button>
+      </div>
+
+      {/* Universal Payment Config Info */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4">
+        <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Wallet size={20} className="text-amber-600" />
+        </div>
+        <div className="text-sm text-amber-800">
+          <span className="font-bold">Universal M-Pesa Details:</span> All students pay via Paybill <span className="font-mono font-bold">254254</span>, Account <span className="font-mono font-bold">12345678</span> for contributions.
+        </div>
       </div>
 
       {stats && (

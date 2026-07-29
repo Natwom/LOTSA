@@ -189,8 +189,8 @@ export default function Membership() {
             <h3 className="font-bold text-amber-800 mb-2 flex items-center gap-2"><Wallet size={16} /> Payment Instructions</h3>
             <div className="grid grid-cols-2 gap-3 text-sm text-amber-700">
               <div><span className="font-semibold">Amount:</span> Ksh 100</div>
-              <div><span className="font-semibold">Paybill:</span> 247247</div>
-              <div><span className="font-semibold">Account:</span> Your Admission Number</div>
+              <div><span className="font-semibold">Paybill:</span> 254254</div>
+              <div><span className="font-semibold">Account:</span> 12345678</div>
               <div><span className="font-semibold">Valid for:</span> 1 Year</div>
             </div>
           </div>

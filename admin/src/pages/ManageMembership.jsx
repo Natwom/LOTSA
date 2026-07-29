@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import DataTable from '../components/DataTable';
-import { CreditCard, CheckCircle, XCircle, Clock, Search, AlertCircle, UserCheck, UserX } from 'lucide-react';
+import { CreditCard, CheckCircle, XCircle, Clock, Search, AlertCircle, UserCheck, UserX, Wallet } from 'lucide-react';
 
 export default function ManageMembership() {
   const [cards, setCards] = useState([]);
   const [pendingPayments, setPendingPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'cards'
+  const [activeTab, setActiveTab] = useState('pending');
   const [search, setSearch] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +18,6 @@ export default function ManageMembership() {
 
   const fetchData = () => {
     setLoading(true);
-    // Fetch both in parallel
     Promise.all([
       axios.get('/membership/all'),
       axios.get('/admin/payments/pending')
@@ -112,6 +111,16 @@ export default function ManageMembership() {
           >
             <CreditCard size={16} /> All Cards ({cards.length})
           </button>
+        </div>
+      </div>
+
+      {/* Universal Payment Config Info */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4">
+        <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Wallet size={20} className="text-amber-600" />
+        </div>
+        <div className="text-sm text-amber-800">
+          <span className="font-bold">Universal M-Pesa Details:</span> All students pay via Paybill <span className="font-mono font-bold">254254</span>, Account <span className="font-mono font-bold">12345678</span> for membership.
         </div>
       </div>
 
