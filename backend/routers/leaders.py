@@ -25,11 +25,36 @@ def create_leader(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # FIX: Check if user already has a leader record (even inactive)
+    existing = db.query(models.Leader).filter(models.Leader.user_id == leader.user_id).first()
+    if existing:
+        # Reactivate and update the existing record
+        existing.position = leader.position
+        existing.bio = leader.bio
+        existing.display_order = leader.display_order or 0
+        existing.is_active = True
+        if leader.photo_url:
+            existing.photo_url = leader.photo_url
+        db.commit()
+        db.refresh(existing)
+        
+        # Load relationships for response
+        result = db.query(models.Leader).options(
+            joinedload(models.Leader.user).joinedload(models.User.profile)
+        ).filter(models.Leader.id == existing.id).first()
+        return result
+    
+    # Create new leader
     db_leader = models.Leader(**leader.model_dump())
     db.add(db_leader)
     db.commit()
     db.refresh(db_leader)
-    return db_leader
+    
+    # Load relationships for response
+    result = db.query(models.Leader).options(
+        joinedload(models.Leader.user).joinedload(models.User.profile)
+    ).filter(models.Leader.id == db_leader.id).first()
+    return result
 
 @router.post("/{leader_id}/upload-photo")
 def upload_photo(
@@ -67,7 +92,12 @@ def update_leader(
         setattr(leader, field, value)
     db.commit()
     db.refresh(leader)
-    return leader
+    
+    # Load relationships for response
+    result = db.query(models.Leader).options(
+        joinedload(models.Leader.user).joinedload(models.User.profile)
+    ).filter(models.Leader.id == leader.id).first()
+    return result
 
 @router.delete("/{leader_id}")
 def delete_leader(
@@ -79,9 +109,26 @@ def delete_leader(
     if not leader:
         raise HTTPException(status_code=404, detail="Not found")
     
+    # Delete photo from Cloudinary if exists
     if leader.photo_public_id:
         delete_file(leader.photo_public_id, resource_type="image")
     
+    # PERMANENT DELETE — removes the row from the database entirely
+    db.delete(leader)
+    db.commit()
+    return {"message": "Leader permanently deleted"}
+
+@router.patch("/{leader_id}/deactivate")
+def deactivate_leader(
+    leader_id: int,
+    current_user: models.User = Depends(auth.require_admin),
+    db: Session = Depends(database.get_db)
+):
+    """Soft-delete alternative: mark leader as inactive without removing the row"""
+    leader = db.query(models.Leader).filter(models.Leader.id == leader_id).first()
+    if not leader:
+        raise HTTPException(status_code=404, detail="Not found")
+    
     leader.is_active = False
     db.commit()
-    return {"message": "Leader removed"}
+    return {"message": "Leader deactivated"}

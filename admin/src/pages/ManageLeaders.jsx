@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import DataTable from '../components/DataTable';
-import { Plus, Upload, Trash2, Award } from 'lucide-react';
+import { Plus, Upload, Trash2, Award, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function ManageLeaders() {
   const [leaders, setLeaders] = useState([]);
@@ -10,6 +10,8 @@ export default function ManageLeaders() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ user_id: '', position: '', bio: '', display_order: 0 });
   const [selectedFile, setSelectedFile] = useState(null);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchLeaders();
@@ -21,7 +23,7 @@ export default function ManageLeaders() {
     axios.get('/leaders?active_only=false').then((res) => {
       setLeaders(res.data);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   };
 
   const fetchUsers = () => {
@@ -30,24 +32,36 @@ export default function ManageLeaders() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const res = await axios.post('/leaders', form);
-    if (selectedFile && res.data.id) {
-      const fd = new FormData();
-      fd.append('file', selectedFile);
-      await axios.post(`/leaders/${res.data.id}/upload-photo`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+    setError('');
+    setMessage('');
+    try {
+      const res = await axios.post('/leaders', form);
+      if (selectedFile && res.data.id) {
+        const fd = new FormData();
+        fd.append('file', selectedFile);
+        await axios.post(`/leaders/${res.data.id}/upload-photo`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+      setForm({ user_id: '', position: '', bio: '', display_order: 0 });
+      setSelectedFile(null);
+      setShowForm(false);
+      setMessage('Leader added successfully!');
+      fetchLeaders();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to add leader. The student may already exist.');
     }
-    setForm({ user_id: '', position: '', bio: '', display_order: 0 });
-    setSelectedFile(null);
-    setShowForm(false);
-    fetchLeaders();
   };
 
   const removeLeader = async (id) => {
-    if (!confirm('Remove this leader?')) return;
-    await axios.delete(`/leaders/${id}`);
-    fetchLeaders();
+    if (!confirm('WARNING: This will PERMANENTLY delete this leader from the database. Continue?')) return;
+    try {
+      await axios.delete(`/leaders/${id}`);
+      setMessage('Leader permanently deleted.');
+      fetchLeaders();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete leader.');
+    }
   };
 
   const columns = [
@@ -92,6 +106,17 @@ export default function ManageLeaders() {
           <Plus size={18} /> {showForm ? 'Cancel' : 'Add Leader'}
         </button>
       </div>
+
+      {message && (
+        <div className="p-4 bg-green-50 text-green-700 rounded-xl flex items-center gap-2">
+          <CheckCircle size={20} /> {message}
+        </div>
+      )}
+      {error && (
+        <div className="p-4 bg-red-50 text-red-700 rounded-xl flex items-center gap-2">
+          <AlertCircle size={20} /> {error}
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
@@ -177,7 +202,7 @@ export default function ManageLeaders() {
           <button
             onClick={() => removeLeader(row.id)}
             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Remove"
+            title="Permanently Delete"
           >
             <Trash2 size={16} />
           </button>
