@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import DataTable from '../components/DataTable';
-import { Plus, Upload, Trash2, Award, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Upload, Trash2, Award, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
 export default function ManageLeaders() {
   const [leaders, setLeaders] = useState([]);
@@ -12,6 +12,7 @@ export default function ManageLeaders() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchLeaders();
@@ -34,6 +35,8 @@ export default function ManageLeaders() {
     e.preventDefault();
     setError('');
     setMessage('');
+    setIsSubmitting(true);
+
     try {
       const res = await axios.post('/leaders', form);
       if (selectedFile && res.data.id) {
@@ -50,6 +53,8 @@ export default function ManageLeaders() {
       fetchLeaders();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to add leader. The student may already exist.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -101,7 +106,8 @@ export default function ManageLeaders() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition-colors"
+          disabled={isSubmitting}
+          className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus size={18} /> {showForm ? 'Cancel' : 'Add Leader'}
         </button>
@@ -119,15 +125,16 @@ export default function ManageLeaders() {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <form onSubmit={handleSubmit} className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4 ${isSubmitting ? 'opacity-70 pointer-events-none' : ''}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Select Student</label>
               <select
                 required
+                disabled={isSubmitting}
                 value={form.user_id}
                 onChange={(e) => setForm({ ...form, user_id: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
               >
                 <option value="">Choose a student...</option>
                 {users.map((u) => (
@@ -141,9 +148,10 @@ export default function ManageLeaders() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
               <select
                 required
+                disabled={isSubmitting}
                 value={form.position}
                 onChange={(e) => setForm({ ...form, position: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
               >
                 <option value="">Select position...</option>
                 <option value="President">President</option>
@@ -163,9 +171,10 @@ export default function ManageLeaders() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
               <input
                 type="number"
+                disabled={isSubmitting}
                 value={form.display_order}
                 onChange={(e) => setForm({ ...form, display_order: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
               />
             </div>
             <div>
@@ -173,8 +182,9 @@ export default function ManageLeaders() {
               <input
                 type="file"
                 accept="image/*"
+                disabled={isSubmitting}
                 onChange={(e) => setSelectedFile(e.target.files[0])}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
               />
             </div>
           </div>
@@ -182,14 +192,25 @@ export default function ManageLeaders() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
             <textarea
               rows={3}
+              disabled={isSubmitting}
               value={form.bio}
               onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
               placeholder="Brief biography..."
             />
           </div>
-          <button type="submit" className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700">
-            Add Leader
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Adding...
+              </>
+            ) : (
+              'Add Leader'
+            )}
           </button>
         </form>
       )}
