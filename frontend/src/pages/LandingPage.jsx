@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { 
   ArrowRight, Users, Calendar, MessageSquare, Shield, 
   Zap, Heart, Globe, ChevronDown, GraduationCap,
-  Menu, X, MapPin, Star
+  Menu, X, MapPin, Star, CheckCircle, TrendingUp
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -125,7 +125,6 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-slate-50">
-        {/* Background Patterns */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/50 via-transparent to-transparent" />
         <div className="absolute top-1/4 left-0 w-96 h-96 bg-emerald-200/30 rounded-full blur-3xl -translate-x-1/2" />
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-teal-200/20 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
@@ -171,7 +170,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hero Visual */}
             <div className="relative hidden lg:block">
               <div className="relative bg-white rounded-2xl shadow-2xl shadow-slate-200/50 border border-slate-100 p-6 space-y-4">
                 <div className="flex items-center justify-between mb-4">
@@ -204,7 +202,6 @@ export default function LandingPage() {
                 </div>
               </div>
               
-              {/* Floating Badge */}
               <div className="absolute -bottom-6 -left-6 bg-white rounded-xl shadow-xl shadow-slate-200/50 border border-slate-100 p-4 flex items-center gap-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
                   <Shield size={18} className="text-white" />
@@ -305,7 +302,6 @@ export default function LandingPage() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 relative">
-            {/* Connecting Line (Desktop) */}
             <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-emerald-100" />
 
             {[
@@ -328,7 +324,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonial / Social Proof */}
+      {/* Testimonial */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-8 md:p-16 relative overflow-hidden">
