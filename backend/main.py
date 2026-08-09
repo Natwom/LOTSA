@@ -64,18 +64,19 @@ seed_admin()
 
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
-# CORS
+# ===================================================================
+# FIXED CORS: allow_credentials=False when using allow_origins=["*"]
+# ===================================================================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ===================================================================
 # NUCLEAR OVERRIDE: Register endpoint in main.py BEFORE auth router
-# This intercepts /api/auth/register so the broken auth.py is never hit
 # ===================================================================
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_main(user: schemas.RegisterRequest, db: Session = Depends(get_db)):
@@ -85,11 +86,9 @@ def register_main(user: schemas.RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # THE FIX: Extract plain lowercase string from enum
-    role_str = user.role.value  # "patron", "student", etc.
+    role_str = user.role.value
     is_student = role_str == "student"
     
-    # Validate student fields
     if is_student:
         if not user.admission_number:
             raise HTTPException(status_code=400, detail="Admission number is required for students")
@@ -100,7 +99,6 @@ def register_main(user: schemas.RegisterRequest, db: Session = Depends(get_db)):
         if db.query(StudentProfile).filter(StudentProfile.admission_number == user.admission_number).first():
             raise HTTPException(status_code=400, detail="Admission number already registered")
     
-    # Validate phone
     if user.phone_number:
         p = user.phone_number.replace(' ', '')
         if not re.match(r'^254\d{9}$', p):
@@ -113,7 +111,7 @@ def register_main(user: schemas.RegisterRequest, db: Session = Depends(get_db)):
     db_user = User(
         email=user.email,
         password_hash=hashed,
-        role=role_str,  # <-- Plain string "patron", NOT enum object
+        role=role_str,
         full_name=user.full_name,
         phone_number=user.phone_number,
         is_active=True
@@ -139,10 +137,8 @@ def register_main(user: schemas.RegisterRequest, db: Session = Depends(get_db)):
     return result
 
 # ===================================================================
-# END NUCLEAR OVERRIDE
+# Include all routers
 # ===================================================================
-
-# Include all routers (auth.py's /register is now shadowed by the override above)
 from .routers import (
     auth, students, announcements, events, elections, complaints,
     chats, notifications, admin as admin_router, leaders, membership,
