@@ -52,20 +52,24 @@ def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_d
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        validate_kenyan_phone(user.phone_number)
-
-        is_student = user.role == models.UserRole.STUDENT
+        is_student = user.role == schemas.UserRole.STUDENT
 
         if is_student:
             validate_admission_number(user.admission_number, db)
+        
+        validate_kenyan_phone(user.phone_number)
 
         hashed = auth_utils.get_password_hash(user.password)
         print(f"[REGISTER] hash created, len={len(hashed)}")
 
+        # FIX: Convert schemas.UserRole to models.UserRole so SQLAlchemy uses .value correctly
+        role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        db_role = models.UserRole(role_value)
+
         db_user = models.User(
             email=user.email,
             password_hash=hashed,
-            role=user.role,
+            role=db_role,
             full_name=user.full_name,
             phone_number=user.phone_number
         )
@@ -122,11 +126,7 @@ def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db
         data={"sub": str(user.id), "role": user.role.value},
         expires_delta=expires
     )
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "role": user.role.value
-    }
+    return {"access_token": token, "token_type": "bearer", "role": user.role.value}
 
 @router.get("/me", response_model=schemas.UserOut)
 def read_me(current_user: models.User = Depends(auth_utils.get_current_active_user)):
