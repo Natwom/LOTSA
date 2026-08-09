@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, validator, root_validator
+from pydantic import BaseModel, EmailStr, Field, validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -67,16 +67,18 @@ class RegisterRequest(BaseModel):
             raise ValueError('Invalid Kenyan mobile network prefix')
         return v
 
-    @root_validator
+    @model_validator(mode='before')
+    @classmethod
     def validate_student_fields(cls, values):
-        role = values.get('role')
-        if role == UserRole.STUDENT:
-            if not values.get('admission_number'):
-                raise ValueError('Admission number is required for students')
-            if not values.get('course'):
-                raise ValueError('Course is required for students')
-            if not values.get('year_of_study'):
-                raise ValueError('Year of study is required for students')
+        if isinstance(values, dict):
+            role = values.get('role')
+            if role == UserRole.STUDENT:
+                if not values.get('admission_number'):
+                    raise ValueError('Admission number is required for students')
+                if not values.get('course'):
+                    raise ValueError('Course is required for students')
+                if not values.get('year_of_study'):
+                    raise ValueError('Year of study is required for students')
         return values
 
 # Kept for backward compatibility / admin use
