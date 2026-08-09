@@ -73,7 +73,76 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all routers
+# ===================================================================
+# NUCLEAR OVERRIDE: Register endpoint in main.py BEFORE auth router
+# This intercepts /api/auth/register so the broken auth.py is never hit
+# ===================================================================
+@app.post("/api/auth/register", response_model=schemas.UserOut)
+def register_main(user: schemas.RegisterRequest, db: Session = Depends(get_db)):
+    print(f"[REGISTER-MAIN] email={user.email}, role_value={user.role.value}")
+    
+    existing = db.query(User).filter(User.email == user.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # THE FIX: Extract plain lowercase string from enum
+    role_str = user.role.value  # "patron", "student", etc.
+    is_student = role_str == "student"
+    
+    # Validate student fields
+    if is_student:
+        if not user.admission_number:
+            raise HTTPException(status_code=400, detail="Admission number is required for students")
+        if not re.match(r'^LOTSA 2025(\d{4})$', user.admission_number):
+            raise HTTPException(status_code=400, detail="Admission number format: LOTSA 2025XXXX")
+        if len(set(re.match(r'^LOTSA 2025(\d{4})$', user.admission_number).group(1))) != 4:
+            raise HTTPException(status_code=400, detail="The 4 digits must all be different")
+        if db.query(StudentProfile).filter(StudentProfile.admission_number == user.admission_number).first():
+            raise HTTPException(status_code=400, detail="Admission number already registered")
+    
+    # Validate phone
+    if user.phone_number:
+        p = user.phone_number.replace(' ', '')
+        if not re.match(r'^254\d{9}$', p):
+            raise HTTPException(status_code=400, detail="Phone must be 254XXXXXXXXX")
+        if p[3:5] not in ['10','11','12','70','71','72','73','74','79','75','76','77','78']:
+            raise HTTPException(status_code=400, detail="Invalid Kenyan mobile prefix")
+    
+    hashed = auth_utils.get_password_hash(user.password)
+    
+    db_user = User(
+        email=user.email,
+        password_hash=hashed,
+        role=role_str,  # <-- Plain string "patron", NOT enum object
+        full_name=user.full_name,
+        phone_number=user.phone_number,
+        is_active=True
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    print(f"[REGISTER-MAIN] SUCCESS id={db_user.id}, stored_role={db_user.role}")
+    
+    if is_student:
+        profile = StudentProfile(
+            user_id=db_user.id,
+            full_name=user.full_name,
+            admission_number=user.admission_number,
+            course=user.course,
+            year_of_study=user.year_of_study,
+            phone_number=user.phone_number
+        )
+        db.add(profile)
+        db.commit()
+    
+    result = db.query(User).options(joinedload(User.profile)).filter(User.id == db_user.id).first()
+    return result
+
+# ===================================================================
+# END NUCLEAR OVERRIDE
+# ===================================================================
+
+# Include all routers (auth.py's /register is now shadowed by the override above)
 from .routers import (
     auth, students, announcements, events, elections, complaints,
     chats, notifications, admin as admin_router, leaders, membership,
@@ -134,96 +203,6 @@ def run_migration():
             results.append(f"ℹ️ '{val}' already in enum")
     
     return {"message": "Migration complete", "details": results}
-
-# ==================== FALLBACK REGISTRATION (bypasses auth.py) ====================
-@app.post("/api/auth/register-fallback")
-def register_fallback(
-    email: str = Form(...),
-    password: str = Form(...),
-    full_name: str = Form(...),
-    phone_number: Optional[str] = Form(None),
-    role: Optional[str] = Form("student"),
-    admission_number: Optional[str] = Form(None),
-    course: Optional[str] = Form(None),
-    year_of_study: Optional[int] = Form(None),
-    db: Session = Depends(get_db)
-):
-    """
-    Fallback registration endpoint that accepts form data directly.
-    This bypasses auth.py entirely until it deploys correctly.
-    """
-    print(f"[REGISTER-FALLBACK] email={email}, role={role}")
-    
-    existing = db.query(User).filter(User.email == email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    is_student = role == "student"
-    
-    # Validate student fields
-    if is_student:
-        if not admission_number:
-            raise HTTPException(status_code=400, detail="Admission number is required for students")
-        if not re.match(r'^LOTSA 2025(\d{4})$', admission_number):
-            raise HTTPException(status_code=400, detail="Admission number format: LOTSA 2025XXXX")
-        if len(set(re.match(r'^LOTSA 2025(\d{4})$', admission_number).group(1))) != 4:
-            raise HTTPException(status_code=400, detail="The 4 digits must all be different")
-        if db.query(StudentProfile).filter(StudentProfile.admission_number == admission_number).first():
-            raise HTTPException(status_code=400, detail="Admission number already registered")
-    
-    # Validate phone
-    if phone_number:
-        p = phone_number.replace(' ', '')
-        if not re.match(r'^254\d{9}$', p):
-            raise HTTPException(status_code=400, detail="Phone must be 254XXXXXXXXX")
-        if p[3:5] not in ['10','11','12','70','71','72','73','74','79','75','76','77','78']:
-            raise HTTPException(status_code=400, detail="Invalid Kenyan mobile prefix")
-    
-    hashed = auth_utils.get_password_hash(password)
-    
-    db_user = User(
-        email=email,
-        password_hash=hashed,
-        role=role,
-        full_name=full_name,
-        phone_number=phone_number,
-        is_active=True
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    print(f"[REGISTER-FALLBACK] SUCCESS id={db_user.id}, role={db_user.role}")
-    
-    if is_student:
-        profile = StudentProfile(
-            user_id=db_user.id,
-            full_name=full_name,
-            admission_number=admission_number,
-            course=course,
-            year_of_study=year_of_study,
-            phone_number=phone_number
-        )
-        db.add(profile)
-        db.commit()
-    
-    result = db.query(User).options(joinedload(User.profile)).filter(User.id == db_user.id).first()
-    return result
-
-@app.post("/api/auth/login-fallback")
-def login_fallback(form_data: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == form_data.email).first()
-    if not user or not auth_utils.verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = auth_utils.create_access_token(
-        data={"sub": str(user.id), "role": user.role.value},
-        expires_delta=expires
-    )
-    return {"access_token": token, "token_type": "bearer", "role": user.role.value}
-
-@app.get("/api/auth/me-fallback", response_model=schemas.UserOut)
-def me_fallback(current_user: User = Depends(auth_utils.get_current_active_user)):
-    return current_user
 
 # ==================== WEBSOCKET ====================
 @app.websocket("/api/chats/ws")
