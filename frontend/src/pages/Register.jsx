@@ -91,13 +91,22 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (form.password !== form.confirm_password) { setError('Passwords do not match'); return }
-    if (isStudent && !validateAdmission(form.admission_number)) { setError('Fix admission number'); return }
-    if (!validateKenyanPhone(form.phone_number)) { setError('Invalid phone'); return }
+    if (form.password !== form.confirm_password) {
+      setError('Passwords do not match')
+      return
+    }
+    if (isStudent && !validateAdmission(form.admission_number)) {
+      setError('Fix admission number')
+      return
+    }
+    if (!validateKenyanPhone(form.phone_number)) {
+      setError('Invalid phone')
+      return
+    }
     setError('')
     setIsLoading(true)
 
-    // Build payload as plain strings for the backup endpoint
+    // BUILD FORM DATA for the fallback endpoint
     const payload = new URLSearchParams()
     payload.append('email', form.email)
     payload.append('password', form.password)
@@ -112,8 +121,8 @@ export default function Register() {
     }
 
     try {
-      // Use the backup endpoint in main.py which accepts form data
-      const res = await axios.post('/auth/register', payload, {
+      // CRITICAL: Use /auth/register-fallback NOT /auth/register
+      const res = await axios.post('/auth/register-fallback', payload, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       })
       console.log('Registration success:', res.data)

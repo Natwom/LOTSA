@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, WebSocket, Query
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, Query, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import ProgrammingError
@@ -96,7 +96,7 @@ app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
 
-# ==================== MIGRATION ENDPOINT ====================
+# ==================== TEMPORARY MIGRATION ENDPOINT ====================
 @app.get("/run-migration")
 def run_migration():
     db = next(get_db())
@@ -135,57 +135,56 @@ def run_migration():
     
     return {"message": "Migration complete", "details": results}
 
-# ==================== BACKUP REGISTRATION (in case auth.py doesn't deploy) ====================
-def validate_admission(number: str, db: Session):
-    if not re.match(r'^LOTSA 2025(\d{4})$', number):
-        raise HTTPException(status_code=400, detail="Admission number must be: LOTSA 2025XXXX")
-    if len(set(re.match(r'^LOTSA 2025(\d{4})$', number).group(1))) != 4:
-        raise HTTPException(status_code=400, detail="The 4 digits must all be different")
-    if db.query(StudentProfile).filter(StudentProfile.admission_number == number).first():
-        raise HTTPException(status_code=400, detail="Admission number already registered")
-
-def validate_phone(phone: str):
-    if not phone: return
-    p = phone.replace(' ', '')
-    if not re.match(r'^254\d{9}$', p):
-        raise HTTPException(status_code=400, detail="Phone must be 254XXXXXXXXX")
-    if p[3:5] not in ['10','11','12','70','71','72','73','74','79','75','76','77','78']:
-        raise HTTPException(status_code=400, detail="Invalid Kenyan mobile prefix")
-
-@app.post("/api/auth/register")
-def register_backup(
-    email: str,
-    password: str,
-    full_name: str,
-    phone_number: Optional[str] = None,
-    role: Optional[str] = "student",
-    admission_number: Optional[str] = None,
-    course: Optional[str] = None,
-    year_of_study: Optional[int] = None,
+# ==================== FALLBACK REGISTRATION (bypasses auth.py) ====================
+@app.post("/api/auth/register-fallback")
+def register_fallback(
+    email: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form(...),
+    phone_number: Optional[str] = Form(None),
+    role: Optional[str] = Form("student"),
+    admission_number: Optional[str] = Form(None),
+    course: Optional[str] = Form(None),
+    year_of_study: Optional[int] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
-    BACKUP REGISTRATION ENDPOINT — works directly in main.py.
-    Accepts plain strings. Use this until auth.py deploys correctly.
+    Fallback registration endpoint that accepts form data directly.
+    This bypasses auth.py entirely until it deploys correctly.
     """
-    print(f"[REGISTER-BACKUP] email={email}, role={role}")
+    print(f"[REGISTER-FALLBACK] email={email}, role={role}")
     
     existing = db.query(User).filter(User.email == email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     is_student = role == "student"
+    
+    # Validate student fields
     if is_student:
-        validate_admission(admission_number, db)
-    validate_phone(phone_number)
+        if not admission_number:
+            raise HTTPException(status_code=400, detail="Admission number is required for students")
+        if not re.match(r'^LOTSA 2025(\d{4})$', admission_number):
+            raise HTTPException(status_code=400, detail="Admission number format: LOTSA 2025XXXX")
+        if len(set(re.match(r'^LOTSA 2025(\d{4})$', admission_number).group(1))) != 4:
+            raise HTTPException(status_code=400, detail="The 4 digits must all be different")
+        if db.query(StudentProfile).filter(StudentProfile.admission_number == admission_number).first():
+            raise HTTPException(status_code=400, detail="Admission number already registered")
+    
+    # Validate phone
+    if phone_number:
+        p = phone_number.replace(' ', '')
+        if not re.match(r'^254\d{9}$', p):
+            raise HTTPException(status_code=400, detail="Phone must be 254XXXXXXXXX")
+        if p[3:5] not in ['10','11','12','70','71','72','73','74','79','75','76','77','78']:
+            raise HTTPException(status_code=400, detail="Invalid Kenyan mobile prefix")
     
     hashed = auth_utils.get_password_hash(password)
     
-    # CRITICAL: Pass plain lowercase string directly
     db_user = User(
         email=email,
         password_hash=hashed,
-        role=role,  # "patron", "student", etc. — plain string
+        role=role,
         full_name=full_name,
         phone_number=phone_number,
         is_active=True
@@ -193,7 +192,7 @@ def register_backup(
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    print(f"[REGISTER-BACKUP] SUCCESS id={db_user.id}, role={db_user.role}")
+    print(f"[REGISTER-FALLBACK] SUCCESS id={db_user.id}, role={db_user.role}")
     
     if is_student:
         profile = StudentProfile(
@@ -207,12 +206,11 @@ def register_backup(
         db.add(profile)
         db.commit()
     
-    # Return with profile loaded
     result = db.query(User).options(joinedload(User.profile)).filter(User.id == db_user.id).first()
     return result
 
-@app.post("/api/auth/login")
-def login_backup(form_data: schemas.LoginRequest, db: Session = Depends(get_db)):
+@app.post("/api/auth/login-fallback")
+def login_fallback(form_data: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.email).first()
     if not user or not auth_utils.verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
@@ -223,8 +221,8 @@ def login_backup(form_data: schemas.LoginRequest, db: Session = Depends(get_db))
     )
     return {"access_token": token, "token_type": "bearer", "role": user.role.value}
 
-@app.get("/api/auth/me", response_model=schemas.UserOut)
-def me_backup(current_user: User = Depends(auth_utils.get_current_active_user)):
+@app.get("/api/auth/me-fallback", response_model=schemas.UserOut)
+def me_fallback(current_user: User = Depends(auth_utils.get_current_active_user)):
     return current_user
 
 # ==================== WEBSOCKET ====================
