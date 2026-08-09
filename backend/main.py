@@ -6,6 +6,7 @@ import re
 import traceback
 import json
 from datetime import datetime, timedelta
+from typing import Optional
 
 from .database import engine, get_db
 from .models import Base, User, UserRole, StudentProfile, Conversation, Message
@@ -50,7 +51,7 @@ def seed_admin():
     except ProgrammingError as e:
         db.rollback()
         if "full_name" in str(e) or "phone_number" in str(e):
-            print("⚠️ Database columns missing. Run GET /fix-db first, then restart.")
+            print("⚠️ Database columns missing. Run GET /run-migration first.")
         else:
             print(f"⚠️ Admin seed error: {e}")
     except Exception as e:
@@ -95,72 +96,136 @@ app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
 
-# ==================== TEMPORARY: FIX DATABASE ====================
-# Hit this ONCE in your browser after deploying, then delete it
-@app.get("/fix-db")
-def fix_database():
-    from sqlalchemy.exc import ProgrammingError
+# ==================== MIGRATION ENDPOINT ====================
+@app.get("/run-migration")
+def run_migration():
     db = next(get_db())
     results = []
     
-    # 1. Add missing columns to users table
     for col, col_type in [("full_name", "VARCHAR"), ("phone_number", "VARCHAR")]:
         try:
             db.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type};"))
             db.commit()
-            results.append(f"✅ Added {col} to users")
+            results.append(f"✅ Added {col}")
         except Exception as e:
             db.rollback()
-            results.append(f"ℹ️ {col}: already exists or error")
+            results.append(f"ℹ️ {col}: already exists")
     
-    # 2. Backfill user data from student_profiles
     db.execute(text("""
-        UPDATE users 
-        SET full_name = COALESCE(
-            (SELECT sp.full_name FROM student_profiles sp WHERE sp.user_id = users.id),
-            full_name
-        )
+        UPDATE users SET full_name = COALESCE((SELECT sp.full_name FROM student_profiles sp WHERE sp.user_id = users.id), full_name)
         WHERE full_name IS NULL OR full_name = '';
     """))
     db.execute(text("""
-        UPDATE users 
-        SET phone_number = COALESCE(
-            (SELECT sp.phone_number FROM student_profiles sp WHERE sp.user_id = users.id),
-            phone_number
-        )
+        UPDATE users SET phone_number = COALESCE((SELECT sp.phone_number FROM student_profiles sp WHERE sp.user_id = users.id), phone_number)
         WHERE phone_number IS NULL OR phone_number = '';
     """))
+    db.execute(text("UPDATE users SET full_name = 'System Administrator', phone_number = '254700000000' WHERE email = 'admin@lotsa.ac.ke';"))
     db.commit()
-    results.append("✅ Backfilled user data")
+    results.append("✅ Backfilled data")
     
-    # 3. Fix admin user
-    db.execute(text("""
-        UPDATE users 
-        SET full_name = 'System Administrator', phone_number = '254700000000'
-        WHERE email = 'admin@lotsa.ac.ke';
-    """))
     db.commit()
-    results.append("✅ Fixed admin user")
-    
-    # 4. Add missing enum values to PostgreSQL enum type
-    db.commit()  # ensure clean transaction
     for val in ['patron', 'deputy_patron', 'committee_member']:
         try:
             db.execute(text(f"ALTER TYPE userrole ADD VALUE '{val}';"))
             db.commit()
-            results.append(f"✅ Added '{val}' to userrole enum")
+            results.append(f"✅ Added '{val}' to enum")
         except Exception as e:
             db.rollback()
-            err = str(e).lower()
-            if "already exists" in err or "duplicate" in err:
-                results.append(f"ℹ️ '{val}' already in enum")
-            else:
-                results.append(f"⚠️ '{val}': {str(e)[:100]}")
+            results.append(f"ℹ️ '{val}' already in enum")
     
-    return {
-        "message": "Database fix complete. Delete the /fix-db endpoint now.",
-        "details": results
-    }
+    return {"message": "Migration complete", "details": results}
+
+# ==================== BACKUP REGISTRATION (in case auth.py doesn't deploy) ====================
+def validate_admission(number: str, db: Session):
+    if not re.match(r'^LOTSA 2025(\d{4})$', number):
+        raise HTTPException(status_code=400, detail="Admission number must be: LOTSA 2025XXXX")
+    if len(set(re.match(r'^LOTSA 2025(\d{4})$', number).group(1))) != 4:
+        raise HTTPException(status_code=400, detail="The 4 digits must all be different")
+    if db.query(StudentProfile).filter(StudentProfile.admission_number == number).first():
+        raise HTTPException(status_code=400, detail="Admission number already registered")
+
+def validate_phone(phone: str):
+    if not phone: return
+    p = phone.replace(' ', '')
+    if not re.match(r'^254\d{9}$', p):
+        raise HTTPException(status_code=400, detail="Phone must be 254XXXXXXXXX")
+    if p[3:5] not in ['10','11','12','70','71','72','73','74','79','75','76','77','78']:
+        raise HTTPException(status_code=400, detail="Invalid Kenyan mobile prefix")
+
+@app.post("/api/auth/register")
+def register_backup(
+    email: str,
+    password: str,
+    full_name: str,
+    phone_number: Optional[str] = None,
+    role: Optional[str] = "student",
+    admission_number: Optional[str] = None,
+    course: Optional[str] = None,
+    year_of_study: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    BACKUP REGISTRATION ENDPOINT — works directly in main.py.
+    Accepts plain strings. Use this until auth.py deploys correctly.
+    """
+    print(f"[REGISTER-BACKUP] email={email}, role={role}")
+    
+    existing = db.query(User).filter(User.email == email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    is_student = role == "student"
+    if is_student:
+        validate_admission(admission_number, db)
+    validate_phone(phone_number)
+    
+    hashed = auth_utils.get_password_hash(password)
+    
+    # CRITICAL: Pass plain lowercase string directly
+    db_user = User(
+        email=email,
+        password_hash=hashed,
+        role=role,  # "patron", "student", etc. — plain string
+        full_name=full_name,
+        phone_number=phone_number,
+        is_active=True
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    print(f"[REGISTER-BACKUP] SUCCESS id={db_user.id}, role={db_user.role}")
+    
+    if is_student:
+        profile = StudentProfile(
+            user_id=db_user.id,
+            full_name=full_name,
+            admission_number=admission_number,
+            course=course,
+            year_of_study=year_of_study,
+            phone_number=phone_number
+        )
+        db.add(profile)
+        db.commit()
+    
+    # Return with profile loaded
+    result = db.query(User).options(joinedload(User.profile)).filter(User.id == db_user.id).first()
+    return result
+
+@app.post("/api/auth/login")
+def login_backup(form_data: schemas.LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == form_data.email).first()
+    if not user or not auth_utils.verify_password(form_data.password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect email or password")
+    expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = auth_utils.create_access_token(
+        data={"sub": str(user.id), "role": user.role.value},
+        expires_delta=expires
+    )
+    return {"access_token": token, "token_type": "bearer", "role": user.role.value}
+
+@app.get("/api/auth/me", response_model=schemas.UserOut)
+def me_backup(current_user: User = Depends(auth_utils.get_current_active_user)):
+    return current_user
 
 # ==================== WEBSOCKET ====================
 @app.websocket("/api/chats/ws")
@@ -187,18 +252,8 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
                 db.commit()
                 db.refresh(db_msg)
                 
-                sender = db.query(User).options(
-                    joinedload(User.profile)
-                ).filter(User.id == user_id).first()
-                
-                sender_name = "Unknown"
-                if sender:
-                    if sender.profile and sender.profile.full_name:
-                        sender_name = sender.profile.full_name
-                    elif sender.full_name:
-                        sender_name = sender.full_name
-                    elif sender.email:
-                        sender_name = sender.email
+                sender = db.query(User).options(joinedload(User.profile)).filter(User.id == user_id).first()
+                sender_name = sender.profile.full_name if sender and sender.profile else (sender.full_name or sender.email) if sender else "Unknown"
                 
                 conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
                 if conv:

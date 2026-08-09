@@ -10,36 +10,20 @@ export const AuthProvider = ({ children }) => {
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('user_settings')
     return saved ? JSON.parse(saved) : {
-      department: '',
-      year_of_study: 1,
-      semester: 1,
-      notifications_enabled: true,
-      email_notifications: true,
-      push_notifications: true,
-      event_reminders: true,
-      election_alerts: true,
-      privacy_mode: 'public',
-      show_online_status: true,
-      allow_messages_from: 'everyone',
-      language: 'en',
-      font_size: 'normal',
-      reduced_motion: false,
-      high_contrast: false,
+      department: '', year_of_study: 1, semester: 1,
+      notifications_enabled: true, email_notifications: true, push_notifications: true,
+      event_reminders: true, election_alerts: true, privacy_mode: 'public',
+      show_online_status: true, allow_messages_from: 'everyone',
+      language: 'en', font_size: 'normal', reduced_motion: false, high_contrast: false,
     }
   })
 
-  // Theme effect
   useEffect(() => {
     const root = window.document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
+    theme === 'dark' ? root.classList.add('dark') : root.classList.remove('dark')
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  // Settings persistence
   useEffect(() => {
     localStorage.setItem('user_settings', JSON.stringify(settings))
   }, [settings])
@@ -48,13 +32,10 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token')
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      axios.get('/auth/me')
-        .then(res => setUser(res.data))
-        .catch(() => {
-          localStorage.removeItem('token')
-          delete axios.defaults.headers.common['Authorization']
-        })
-        .finally(() => setLoading(false))
+      axios.get('/auth/me').then(res => setUser(res.data)).catch(() => {
+        localStorage.removeItem('token')
+        delete axios.defaults.headers.common['Authorization']
+      }).finally(() => setLoading(false))
     } else {
       setLoading(false)
     }
@@ -68,13 +49,9 @@ export const AuthProvider = ({ children }) => {
     const userRes = await axios.get('/auth/me')
     setUser(userRes.data)
     try {
-      const settingsRes = await axios.get('/settings/me')
-      if (settingsRes.data) {
-        setSettings(prev => ({ ...prev, ...settingsRes.data }))
-      }
-    } catch (e) {
-      // Use local settings
-    }
+      const s = await axios.get('/settings/me')
+      if (s.data) setSettings(prev => ({ ...prev, ...s.data }))
+    } catch (e) {}
     return res.data
   }
 
@@ -83,27 +60,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('role')
     delete axios.defaults.headers.common['Authorization']
     setUser(null)
-    // HashRouter fix: include /#/ prefix so static hosting never sees the route
     window.location.href = '/#/login'
   }
 
   const updateSettings = async (newSettings) => {
     setSettings(prev => ({ ...prev, ...newSettings }))
-    try {
-      await axios.put('/settings/me', newSettings)
-    } catch (e) {
-      console.log('Settings saved locally only')
-    }
+    try { await axios.put('/settings/me', newSettings) } catch (e) {}
   }
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light')
-  }
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light')
 
-  // Role helpers
   const isStudent = () => user?.role === 'student'
   const isAdmin = () => user?.role === 'admin'
-  const isLeader = () => user?.role === 'leader'
   const isPatron = () => user?.role === 'patron'
   const isDeputyPatron = () => user?.role === 'deputy_patron'
   const isCommitteeMember = () => user?.role === 'committee_member'
@@ -112,11 +80,8 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, login, logout, loading, 
-      theme, toggleTheme, 
-      settings, updateSettings,
-      isStudent, isAdmin, isLeader, isPatron, 
-      isDeputyPatron, isCommitteeMember, isLeadership, isNonStudent
+      user, login, logout, loading, theme, toggleTheme, settings, updateSettings,
+      isStudent, isAdmin, isPatron, isDeputyPatron, isCommitteeMember, isLeadership, isNonStudent
     }}>
       {children}
     </AuthContext.Provider>
