@@ -46,7 +46,7 @@ def validate_kenyan_phone(phone: str):
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_db)):
-    print(f"[REGISTER] email={user.email}, role={user.role}")
+    print(f"[REGISTER] email={user.email}, role={user.role.value}")
     try:
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
@@ -62,14 +62,14 @@ def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_d
         hashed = auth_utils.get_password_hash(user.password)
         print(f"[REGISTER] hash created, len={len(hashed)}")
 
-        # FIX: Convert schemas.UserRole to models.UserRole so SQLAlchemy uses .value correctly
-        role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
-        db_role = models.UserRole(role_value)
+        # CRITICAL FIX: Pass the string value "patron", not the enum object
+        role_str = user.role.value  # This gives "patron", "student", etc.
+        print(f"[REGISTER] role string = {role_str}")
 
         db_user = models.User(
             email=user.email,
             password_hash=hashed,
-            role=db_role,
+            role=role_str,  # <-- Pass plain string, SQLAlchemy handles it
             full_name=user.full_name,
             phone_number=user.phone_number
         )
