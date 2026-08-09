@@ -50,7 +50,7 @@ def seed_admin():
     except ProgrammingError as e:
         db.rollback()
         if "full_name" in str(e) or "phone_number" in str(e):
-            print("⚠️ Database columns missing. Run GET /run-migration first, then restart.")
+            print("⚠️ Database columns missing. Run GET /fix-db first, then restart.")
         else:
             print(f"⚠️ Admin seed error: {e}")
     except Exception as e:
@@ -95,38 +95,72 @@ app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
 
-# ==================== TEMPORARY: FIX POSTGRESQL ENUM ====================
-# Hit this ONCE after deploying, then delete this code and redeploy
-@app.get("/fix-enum")
-def fix_enum():
+# ==================== TEMPORARY: FIX DATABASE ====================
+# Hit this ONCE in your browser after deploying, then delete it
+@app.get("/fix-db")
+def fix_database():
+    from sqlalchemy.exc import ProgrammingError
     db = next(get_db())
-    db.commit()  # close any open transaction
+    results = []
     
-    try:
-        db.execute(text("ALTER TYPE userrole ADD VALUE 'patron';"))
-        db.commit()
-        print("✅ Added 'patron'")
-    except Exception as e:
-        db.rollback()
-        print(f"ℹ️ patron: {e}")
+    # 1. Add missing columns to users table
+    for col, col_type in [("full_name", "VARCHAR"), ("phone_number", "VARCHAR")]:
+        try:
+            db.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type};"))
+            db.commit()
+            results.append(f"✅ Added {col} to users")
+        except Exception as e:
+            db.rollback()
+            results.append(f"ℹ️ {col}: already exists or error")
     
-    try:
-        db.execute(text("ALTER TYPE userrole ADD VALUE 'deputy_patron';"))
-        db.commit()
-        print("✅ Added 'deputy_patron'")
-    except Exception as e:
-        db.rollback()
-        print(f"ℹ️ deputy_patron: {e}")
+    # 2. Backfill user data from student_profiles
+    db.execute(text("""
+        UPDATE users 
+        SET full_name = COALESCE(
+            (SELECT sp.full_name FROM student_profiles sp WHERE sp.user_id = users.id),
+            full_name
+        )
+        WHERE full_name IS NULL OR full_name = '';
+    """))
+    db.execute(text("""
+        UPDATE users 
+        SET phone_number = COALESCE(
+            (SELECT sp.phone_number FROM student_profiles sp WHERE sp.user_id = users.id),
+            phone_number
+        )
+        WHERE phone_number IS NULL OR phone_number = '';
+    """))
+    db.commit()
+    results.append("✅ Backfilled user data")
     
-    try:
-        db.execute(text("ALTER TYPE userrole ADD VALUE 'committee_member';"))
-        db.commit()
-        print("✅ Added 'committee_member'")
-    except Exception as e:
-        db.rollback()
-        print(f"ℹ️ committee_member: {e}")
+    # 3. Fix admin user
+    db.execute(text("""
+        UPDATE users 
+        SET full_name = 'System Administrator', phone_number = '254700000000'
+        WHERE email = 'admin@lotsa.ac.ke';
+    """))
+    db.commit()
+    results.append("✅ Fixed admin user")
     
-    return {"message": "Enum updated. Delete this endpoint now."}
+    # 4. Add missing enum values to PostgreSQL enum type
+    db.commit()  # ensure clean transaction
+    for val in ['patron', 'deputy_patron', 'committee_member']:
+        try:
+            db.execute(text(f"ALTER TYPE userrole ADD VALUE '{val}';"))
+            db.commit()
+            results.append(f"✅ Added '{val}' to userrole enum")
+        except Exception as e:
+            db.rollback()
+            err = str(e).lower()
+            if "already exists" in err or "duplicate" in err:
+                results.append(f"ℹ️ '{val}' already in enum")
+            else:
+                results.append(f"⚠️ '{val}': {str(e)[:100]}")
+    
+    return {
+        "message": "Database fix complete. Delete the /fix-db endpoint now.",
+        "details": results
+    }
 
 # ==================== WEBSOCKET ====================
 @app.websocket("/api/chats/ws")

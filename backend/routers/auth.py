@@ -46,13 +46,24 @@ def validate_kenyan_phone(phone: str):
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_db)):
-    print(f"[REGISTER] email={user.email}, role={user.role.value}")
+    # CRITICAL DEBUG: Show exactly what Pydantic gave us
+    print(f"[REGISTER] email={user.email}")
+    print(f"[REGISTER] user.role type={type(user.role)}, repr={repr(user.role)}")
+    
     try:
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        is_student = user.role == schemas.UserRole.STUDENT
+        # EXTRACT LOWERCASE STRING VALUE - THIS IS THE FIX
+        if hasattr(user.role, 'value'):
+            role_str = str(user.role.value).lower()
+        else:
+            role_str = str(user.role).lower()
+        
+        print(f"[REGISTER] EXTRACTED role_str='{role_str}'")
+        
+        is_student = role_str == 'student'
 
         if is_student:
             validate_admission_number(user.admission_number, db)
@@ -62,21 +73,18 @@ def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_d
         hashed = auth_utils.get_password_hash(user.password)
         print(f"[REGISTER] hash created, len={len(hashed)}")
 
-        # CRITICAL FIX: Pass the string value "patron", not the enum object
-        role_str = user.role.value  # This gives "patron", "student", etc.
-        print(f"[REGISTER] role string = {role_str}")
-
+        # Pass the plain string - SQLAlchemy will handle it
         db_user = models.User(
             email=user.email,
             password_hash=hashed,
-            role=role_str,  # <-- Pass plain string, SQLAlchemy handles it
+            role=role_str,
             full_name=user.full_name,
             phone_number=user.phone_number
         )
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        print(f"[REGISTER] user created id={db_user.id}, role={db_user.role}")
+        print(f"[REGISTER] SUCCESS - user id={db_user.id}, role={db_user.role}")
 
         if is_student:
             profile = models.StudentProfile(
@@ -90,14 +98,11 @@ def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_d
             db.add(profile)
             db.commit()
             print("[REGISTER] student profile created")
-        else:
-            print("[REGISTER] non-student user created (no student profile)")
 
         result = db.query(models.User).options(
             joinedload(models.User.profile)
         ).filter(models.User.id == db_user.id).first()
         
-        print("[REGISTER] SUCCESS")
         return result
 
     except HTTPException:
@@ -115,12 +120,10 @@ def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db
         print("[LOGIN] user not found")
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
-    print(f"[LOGIN] verifying password")
     if not auth_utils.verify_password(form_data.password, user.password_hash):
         print("[LOGIN] password mismatch")
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
-    print("[LOGIN] password OK, creating token")
     expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = auth_utils.create_access_token(
         data={"sub": str(user.id), "role": user.role.value},

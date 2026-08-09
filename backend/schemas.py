@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, validator, model_validator, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -43,7 +43,6 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-# NEW: Unified registration for students + non-students
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
@@ -54,14 +53,15 @@ class RegisterRequest(BaseModel):
     course: Optional[str] = None
     year_of_study: Optional[int] = None
 
-    @validator('role', pre=True)
+    @field_validator('role', mode='before')
     @classmethod
     def normalize_role(cls, v):
         if isinstance(v, str):
             return v.lower()
         return v
 
-    @validator('phone_number')
+    @field_validator('phone_number')
+    @classmethod
     def validate_kenyan_phone(cls, v):
         if not v:
             return v
@@ -88,7 +88,6 @@ class RegisterRequest(BaseModel):
                     raise ValueError('Year of study is required for students')
         return values
 
-# Kept for backward compatibility / admin use
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
@@ -358,8 +357,6 @@ class LeaderOut(BaseModel):
     class Config:
         from_attributes = True
 
-# ==================== DOCUMENT SCHEMAS ====================
-
 class DocumentCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -378,8 +375,6 @@ class DocumentOut(BaseModel):
     uploaded_at: datetime
     class Config:
         from_attributes = True
-
-# ==================== CONTRIBUTION SCHEMAS ====================
 
 class ContributionPeriodCreate(BaseModel):
     title: str
@@ -422,8 +417,6 @@ class ContributionPaymentOut(BaseModel):
     period: Optional[ContributionPeriodOut] = None
     class Config:
         from_attributes = True
-
-# ==================== SETTINGS & TERMS SCHEMAS ====================
 
 class UserSettingsBase(BaseModel):
     department: Optional[str] = None
