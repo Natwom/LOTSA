@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, validator, root_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -8,6 +8,9 @@ class UserRole(str, Enum):
     STUDENT = "student"
     ADMIN = "admin"
     LEADER = "leader"
+    PATRON = "patron"
+    DEPUTY_PATRON = "deputy_patron"
+    COMMITTEE_MEMBER = "committee_member"
 
 class ComplaintStatus(str, Enum):
     PENDING = "pending"
@@ -40,6 +43,43 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+# NEW: Unified registration for students + non-students
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    full_name: str
+    phone_number: Optional[str] = None
+    role: UserRole = UserRole.STUDENT
+    admission_number: Optional[str] = None
+    course: Optional[str] = None
+    year_of_study: Optional[int] = None
+
+    @validator('phone_number')
+    def validate_kenyan_phone(cls, v):
+        if not v:
+            return v
+        v = v.replace(' ', '')
+        if not re.match(r'^254\d{9}$', v):
+            raise ValueError('Phone must be a valid Kenyan number (254XXXXXXXXX)')
+        prefix = v[3:5]
+        valid = ['10', '11', '12', '70', '71', '72', '73', '74', '79', '75', '76', '77', '78']
+        if prefix not in valid:
+            raise ValueError('Invalid Kenyan mobile network prefix')
+        return v
+
+    @root_validator
+    def validate_student_fields(cls, values):
+        role = values.get('role')
+        if role == UserRole.STUDENT:
+            if not values.get('admission_number'):
+                raise ValueError('Admission number is required for students')
+            if not values.get('course'):
+                raise ValueError('Course is required for students')
+            if not values.get('year_of_study'):
+                raise ValueError('Year of study is required for students')
+        return values
+
+# Kept for backward compatibility / admin use
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
@@ -98,6 +138,8 @@ class UserOut(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
     profile: Optional[StudentProfileOut] = None
     class Config:
         from_attributes = True

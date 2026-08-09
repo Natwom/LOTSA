@@ -20,7 +20,9 @@ export default function Login() {
     setError('')
     setIsLoading(true)
     try {
-      await login(email, password)
+      const data = await login(email, password)
+      // Route based on role — all authenticated users go to dashboard
+      // The dashboard will show different content based on role
       navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password. Please try again.')
@@ -59,7 +61,7 @@ export default function Login() {
         <div className="bg-white rounded-2xl shadow-2xl shadow-black/30 p-8 border border-white/10">
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-900">Welcome Back</h2>
-            <p className="text-sm text-gray-500 mt-1">Sign in to access your student dashboard</p>
+            <p className="text-sm text-gray-500 mt-1">Sign in to access your portal</p>
           </div>
 
           {error && (
@@ -82,7 +84,7 @@ export default function Login() {
                   required 
                   value={email} 
                   onChange={e => setEmail(e.target.value)} 
-                  placeholder="you@student.ac.ke"
+                  placeholder="you@email.com"
                   className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
                 />
               </div>
@@ -165,7 +167,7 @@ export default function Login() {
             </p>
             <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400">
               <ShieldCheck size={12} />
-              <span>Secure, encrypted, and student-verified</span>
+              <span>Secure, encrypted, and verified</span>
             </div>
           </div>
         </div>

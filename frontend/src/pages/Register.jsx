@@ -4,11 +4,20 @@ import axios from '../api/axios'
 import { 
   Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle, 
   GraduationCap, User, Hash, BookOpen, 
-  Calendar, Mail, Phone, Lock, ShieldCheck, Zap 
+  Calendar, Mail, Phone, Lock, ShieldCheck, Zap,
+  Users, Crown, UserCog
 } from 'lucide-react'
+
+const ROLES = [
+  { key: 'student', label: 'Student', icon: GraduationCap },
+  { key: 'patron', label: 'Patron', icon: Crown },
+  { key: 'deputy_patron', label: 'Deputy Patron', icon: UserCog },
+  { key: 'committee_member', label: 'Committee Member', icon: Users },
+]
 
 export default function Register() {
   const [form, setForm] = useState({
+    role: 'student',
     full_name: '', admission_number: '', course: '', year_of_study: '', 
     email: '', phone_number: '', password: '', confirm_password: ''
   })
@@ -21,6 +30,8 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState(1)
   const navigate = useNavigate()
+
+  const isStudent = form.role === 'student'
 
   // ==================== KENYAN PHONE VALIDATION ====================
 
@@ -108,14 +119,13 @@ export default function Register() {
   // ==================== STEP VALIDATION ====================
 
   const isStep1Valid = () => {
-    return form.full_name && 
+    const base = form.full_name && form.phone_number && !phoneError && form.phone_number.length === 12
+    if (!isStudent) return base
+    return base && 
            form.admission_number && 
            !admissionError && 
            form.course && 
-           form.year_of_study &&
-           form.phone_number &&
-           !phoneError &&
-           form.phone_number.length === 12
+           form.year_of_study
   }
 
   const isStep2Valid = () => {
@@ -133,7 +143,7 @@ export default function Register() {
       setError('Passwords do not match')
       return
     }
-    if (!validateAdmission(form.admission_number)) {
+    if (isStudent && !validateAdmission(form.admission_number)) {
       setError('Please fix the admission number format')
       return
     }
@@ -148,11 +158,16 @@ export default function Register() {
       email: form.email,
       password: form.password,
       full_name: form.full_name,
-      admission_number: form.admission_number,
-      course: form.course,
-      year_of_study: parseInt(form.year_of_study),
-      phone_number: form.phone_number || null
+      phone_number: form.phone_number || null,
+      role: form.role,
     }
+
+    if (isStudent) {
+      payload.admission_number = form.admission_number
+      payload.course = form.course
+      payload.year_of_study = parseInt(form.year_of_study)
+    }
+
     console.log('Sending registration payload:', payload)
 
     try {
@@ -224,12 +239,44 @@ export default function Register() {
           <div className="mb-6">
             <h2 className="text-xl font-bold text-gray-900">Create Account</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {step === 1 ? 'Step 1: Student Information' : 'Step 2: Account Security'}
+              {isStudent 
+                ? (step === 1 ? 'Step 1: Student Information' : 'Step 2: Account Security')
+                : 'Leadership Registration'}
             </p>
             {/* Progress bar */}
             <div className="mt-4 flex gap-2">
               <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step >= 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />
-              <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />
+              {isStudent && <div className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+            </div>
+          </div>
+
+          {/* Role Selector */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Register as</label>
+            <div className="grid grid-cols-2 gap-2">
+              {ROLES.map((r) => {
+                const Icon = r.icon
+                const active = form.role === r.key
+                return (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => {
+                      setForm({ ...form, role: r.key })
+                      setStep(1)
+                      setError('')
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                      active 
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {r.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -243,89 +290,91 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {step === 1 ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Full Name */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Full Name</label>
-                    <div className="relative">
-                      <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input 
-                        required 
-                        value={form.full_name} 
-                        onChange={e => setForm({...form, full_name: e.target.value})}
-                        placeholder="Daniel Natwom"
-                        className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Admission Number */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Admission No.</label>
-                    <div className="relative">
-                      <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input 
-                        required 
-                        value={form.admission_number} 
-                        onChange={handleAdmissionChange}
-                        placeholder="LOTSA 2025XXXX"
-                        className={`w-full pl-9 pr-3 py-2.5 border rounded-xl font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all ${
-                          admissionError 
-                            ? 'border-red-300 bg-red-50' 
-                            : form.admission_number && !admissionError
-                            ? 'border-green-300 bg-green-50'
-                            : 'border-gray-200 bg-gray-50'
-                        }`}
-                      />
-                    </div>
-                    {admissionError && (
-                      <p className="text-[11px] text-red-500 flex items-center gap-1 mt-1">
-                        <AlertCircle size={10} /> {admissionError}
-                      </p>
-                    )}
-                    {!admissionError && form.admission_number && (
-                      <p className="text-[11px] text-green-600 flex items-center gap-1 mt-1">
-                        <ShieldCheck size={10} /> Valid format
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Course */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Course</label>
-                    <div className="relative">
-                      <BookOpen size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input 
-                        required 
-                        value={form.course} 
-                        onChange={e => setForm({...form, course: e.target.value})}
-                        placeholder="e.g. Computer Science"
-                        className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Year */}
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Year</label>
-                    <div className="relative">
-                      <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <select 
-                        required 
-                        value={form.year_of_study} 
-                        onChange={e => setForm({...form, year_of_study: e.target.value})}
-                        className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm appearance-none"
-                      >
-                        <option value="">Select Year</option>
-                        {[1,2,3,4,5,6].map(y => (
-                          <option key={y} value={y}>Year {y}</option>
-                        ))}
-                      </select>
-                    </div>
+                {/* Full Name - Always required */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Full Name</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      required 
+                      value={form.full_name} 
+                      onChange={e => setForm({...form, full_name: e.target.value})}
+                      placeholder="Daniel Natwom"
+                      className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
+                    />
                   </div>
                 </div>
 
-                {/* Phone */}
+                {isStudent && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Admission Number */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Admission No.</label>
+                      <div className="relative">
+                        <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input 
+                          required 
+                          value={form.admission_number} 
+                          onChange={handleAdmissionChange}
+                          placeholder="LOTSA 2025XXXX"
+                          className={`w-full pl-9 pr-3 py-2.5 border rounded-xl font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all ${
+                            admissionError 
+                              ? 'border-red-300 bg-red-50' 
+                              : form.admission_number && !admissionError
+                              ? 'border-green-300 bg-green-50'
+                              : 'border-gray-200 bg-gray-50'
+                          }`}
+                        />
+                      </div>
+                      {admissionError && (
+                        <p className="text-[11px] text-red-500 flex items-center gap-1 mt-1">
+                          <AlertCircle size={10} /> {admissionError}
+                        </p>
+                      )}
+                      {!admissionError && form.admission_number && (
+                        <p className="text-[11px] text-green-600 flex items-center gap-1 mt-1">
+                          <ShieldCheck size={10} /> Valid format
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Course */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Course</label>
+                      <div className="relative">
+                        <BookOpen size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input 
+                          required 
+                          value={form.course} 
+                          onChange={e => setForm({...form, course: e.target.value})}
+                          placeholder="e.g. Computer Science"
+                          className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Year */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Year</label>
+                      <div className="relative">
+                        <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <select 
+                          required 
+                          value={form.year_of_study} 
+                          onChange={e => setForm({...form, year_of_study: e.target.value})}
+                          className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm appearance-none"
+                        >
+                          <option value="">Select Year</option>
+                          {[1,2,3,4,5,6].map(y => (
+                            <option key={y} value={y}>Year {y}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Phone - Everyone */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                     Phone <span className="text-[10px] font-normal normal-case text-gray-400">(Kenyan)</span>
@@ -393,7 +442,7 @@ export default function Register() {
                       required 
                       value={form.email} 
                       onChange={e => setForm({...form, email: e.target.value})}
-                      placeholder="student@lotsa.ac.ke"
+                      placeholder="name@organization.ac.ke"
                       className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 focus:bg-white transition-all text-sm"
                     />
                   </div>

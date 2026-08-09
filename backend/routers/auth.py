@@ -45,15 +45,19 @@ def validate_kenyan_phone(phone: str):
         raise HTTPException(status_code=400, detail="Invalid Kenyan mobile prefix")
 
 @router.post("/register", response_model=schemas.UserOut)
-def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    print(f"[REGISTER] email={user.email}")
+def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_db)):
+    print(f"[REGISTER] email={user.email}, role={user.role}")
     try:
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        validate_admission_number(user.admission_number, db)
         validate_kenyan_phone(user.phone_number)
+
+        is_student = user.role == models.UserRole.STUDENT
+
+        if is_student:
+            validate_admission_number(user.admission_number, db)
 
         hashed = auth_utils.get_password_hash(user.password)
         print(f"[REGISTER] hash created, len={len(hashed)}")
@@ -61,24 +65,29 @@ def register(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
         db_user = models.User(
             email=user.email,
             password_hash=hashed,
-            role=models.UserRole.STUDENT
+            role=user.role,
+            full_name=user.full_name,
+            phone_number=user.phone_number
         )
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
-        print(f"[REGISTER] user created id={db_user.id}")
+        print(f"[REGISTER] user created id={db_user.id}, role={db_user.role}")
 
-        profile = models.StudentProfile(
-            user_id=db_user.id,
-            full_name=user.full_name,
-            admission_number=user.admission_number,
-            course=user.course,
-            year_of_study=user.year_of_study,
-            phone_number=user.phone_number
-        )
-        db.add(profile)
-        db.commit()
-        print("[REGISTER] profile created")
+        if is_student:
+            profile = models.StudentProfile(
+                user_id=db_user.id,
+                full_name=user.full_name,
+                admission_number=user.admission_number,
+                course=user.course,
+                year_of_study=user.year_of_study,
+                phone_number=user.phone_number
+            )
+            db.add(profile)
+            db.commit()
+            print("[REGISTER] student profile created")
+        else:
+            print("[REGISTER] non-student user created (no student profile)")
 
         result = db.query(models.User).options(
             joinedload(models.User.profile)
@@ -113,7 +122,11 @@ def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db
         data={"sub": str(user.id), "role": user.role.value},
         expires_delta=expires
     )
-    return {"access_token": token, "token_type": "bearer", "role": user.role.value}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user.role.value
+    }
 
 @router.get("/me", response_model=schemas.UserOut)
 def read_me(current_user: models.User = Depends(auth_utils.get_current_active_user)):

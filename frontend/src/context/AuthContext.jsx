@@ -100,11 +100,23 @@ export const AuthProvider = ({ children }) => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light')
   }
 
+  // Role helpers
+  const isStudent = () => user?.role === 'student'
+  const isAdmin = () => user?.role === 'admin'
+  const isLeader = () => user?.role === 'leader'
+  const isPatron = () => user?.role === 'patron'
+  const isDeputyPatron = () => user?.role === 'deputy_patron'
+  const isCommitteeMember = () => user?.role === 'committee_member'
+  const isLeadership = () => ['patron', 'deputy_patron', 'committee_member', 'admin', 'leader'].includes(user?.role)
+  const isNonStudent = () => ['patron', 'deputy_patron', 'committee_member'].includes(user?.role)
+
   return (
     <AuthContext.Provider value={{ 
       user, login, logout, loading, 
       theme, toggleTheme, 
-      settings, updateSettings 
+      settings, updateSettings,
+      isStudent, isAdmin, isLeader, isPatron, 
+      isDeputyPatron, isCommitteeMember, isLeadership, isNonStudent
     }}>
       {children}
     </AuthContext.Provider>

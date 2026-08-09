@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -8,6 +8,11 @@ router = APIRouter()
 
 @router.get("/me/profile", response_model=schemas.StudentProfileOut)
 def get_profile(current_user: models.User = Depends(auth.get_current_active_user)):
+    if not current_user.profile:
+        raise HTTPException(
+            status_code=404, 
+            detail="Student profile not found. Only students have academic profiles."
+        )
     return current_user.profile
 
 @router.put("/me/profile", response_model=schemas.StudentProfileOut)
@@ -16,27 +21,31 @@ def update_profile(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(database.get_db)
 ):
+    if not current_user.profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Student profile not found. Only students can update academic profiles."
+        )
     profile = current_user.profile
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(profile, field, value)
+    
+    # Sync name/phone changes back to User table for consistency
+    if 'full_name' in update_data and update_data['full_name']:
+        current_user.full_name = update_data['full_name']
+    if 'phone_number' in update_data and update_data['phone_number']:
+        current_user.phone_number = update_data['phone_number']
+    
     db.commit()
     db.refresh(profile)
     return profile
-
-# ==================== REAL ACTIVITY STATS ====================
 
 @router.get("/me/activity")
 def get_my_activity(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(database.get_db)
 ):
-    """
-    Returns real activity counts based on the student's actual platform usage:
-    - events_attended: Events where student checked in (attended=True)
-    - votes_cast: Election votes submitted by this student
-    - messages_sent: Chat messages sent
-    - groups_joined: Group conversations participated in
-    """
     if not current_user.profile:
         return {
             "events_attended": 0,
@@ -48,23 +57,19 @@ def get_my_activity(
     profile_id = current_user.profile.id
     user_id = current_user.id
 
-    # Events where student was marked as attended
     events_attended = db.query(func.count(models.EventRegistration.id)).filter(
         models.EventRegistration.student_id == profile_id,
         models.EventRegistration.attended == True
     ).scalar() or 0
 
-    # Election votes cast
     votes_cast = db.query(func.count(models.Vote.id)).filter(
         models.Vote.student_id == profile_id
     ).scalar() or 0
 
-    # Chat messages sent
     messages_sent = db.query(func.count(models.Message.id)).filter(
         models.Message.sender_id == user_id
     ).scalar() or 0
 
-    # Group conversations joined (from association table)
     groups_joined = db.query(func.count()).select_from(
         models.conversation_participants
     ).filter(

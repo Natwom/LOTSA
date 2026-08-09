@@ -8,6 +8,9 @@ class UserRole(str, enum.Enum):
     STUDENT = "student"
     ADMIN = "admin"
     LEADER = "leader"
+    PATRON = "patron"
+    DEPUTY_PATRON = "deputy_patron"
+    COMMITTEE_MEMBER = "committee_member"
 
 class ComplaintStatus(str, enum.Enum):
     PENDING = "pending"
@@ -37,6 +40,8 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     role = Column(Enum(UserRole), default=UserRole.STUDENT)
+    full_name = Column(String, nullable=True)
+    phone_number = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
