@@ -13,6 +13,7 @@ from . import schemas, auth as auth_utils
 from .config import SECRET_KEY, ALGORITHM
 from .websocket_manager import manager
 from jose import jwt as jose_jwt
+from sqlalchemy import text
 
 # Create tables
 try:
@@ -93,6 +94,39 @@ app.include_router(settings_router.router, prefix="/api/settings", tags=["settin
 app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
+
+# ==================== TEMPORARY: FIX POSTGRESQL ENUM ====================
+# Hit this ONCE after deploying, then delete this code and redeploy
+@app.get("/fix-enum")
+def fix_enum():
+    db = next(get_db())
+    db.commit()  # close any open transaction
+    
+    try:
+        db.execute(text("ALTER TYPE userrole ADD VALUE 'patron';"))
+        db.commit()
+        print("✅ Added 'patron'")
+    except Exception as e:
+        db.rollback()
+        print(f"ℹ️ patron: {e}")
+    
+    try:
+        db.execute(text("ALTER TYPE userrole ADD VALUE 'deputy_patron';"))
+        db.commit()
+        print("✅ Added 'deputy_patron'")
+    except Exception as e:
+        db.rollback()
+        print(f"ℹ️ deputy_patron: {e}")
+    
+    try:
+        db.execute(text("ALTER TYPE userrole ADD VALUE 'committee_member';"))
+        db.commit()
+        print("✅ Added 'committee_member'")
+    except Exception as e:
+        db.rollback()
+        print(f"ℹ️ committee_member: {e}")
+    
+    return {"message": "Enum updated. Delete this endpoint now."}
 
 # ==================== WEBSOCKET ====================
 @app.websocket("/api/chats/ws")

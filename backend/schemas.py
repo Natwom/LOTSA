@@ -54,6 +54,13 @@ class RegisterRequest(BaseModel):
     course: Optional[str] = None
     year_of_study: Optional[int] = None
 
+    @validator('role', pre=True)
+    @classmethod
+    def normalize_role(cls, v):
+        if isinstance(v, str):
+            return v.lower()
+        return v
+
     @validator('phone_number')
     def validate_kenyan_phone(cls, v):
         if not v:
@@ -72,7 +79,7 @@ class RegisterRequest(BaseModel):
     def validate_student_fields(cls, values):
         if isinstance(values, dict):
             role = values.get('role')
-            if role == UserRole.STUDENT:
+            if role == UserRole.STUDENT or role == 'student':
                 if not values.get('admission_number'):
                     raise ValueError('Admission number is required for students')
                 if not values.get('course'):
