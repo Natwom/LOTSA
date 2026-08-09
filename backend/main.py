@@ -12,6 +12,7 @@ from . import schemas, auth as auth_utils
 from .config import SECRET_KEY, ALGORITHM
 from .websocket_manager import manager
 from jose import jwt as jose_jwt
+from sqlalchemy import text
 
 # Create tables
 try:
@@ -30,13 +31,22 @@ def seed_admin():
                 email="admin@lotsa.ac.ke",
                 password_hash=auth_utils.get_password_hash("Admin@123"),
                 role=UserRole.ADMIN,
+                full_name="System Administrator",      # <-- ADDED
+                phone_number="254700000000",           # <-- ADDED
                 is_active=True
             )
             db.add(admin)
             db.commit()
             print("✅ Default admin created: admin@lotsa.ac.ke / Admin@123")
         else:
-            print("ℹ️ Admin user already exists")
+            # Backfill existing admin if missing full_name
+            if not admin.full_name:
+                admin.full_name = "System Administrator"
+                admin.phone_number = admin.phone_number or "254700000000"
+                db.commit()
+                print("✅ Updated existing admin with full_name")
+            else:
+                print("ℹ️ Admin user already exists")
     except Exception as e:
         db.rollback()
         print(f"⚠️ Admin seed error: {e}")
@@ -79,7 +89,65 @@ app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
 
-# WebSocket endpoint at app level (NOT in router)
+# ==================== TEMPORARY MIGRATION ENDPOINT ====================
+# Hit this ONCE after deploying, then delete this code and redeploy
+@app.get("/run-migration")
+def run_migration():
+    from sqlalchemy.exc import ProgrammingError
+    db = next(get_db())
+    
+    # Add full_name column if missing
+    try:
+        db.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR;"))
+        db.commit()
+        print("✅ Added full_name")
+    except Exception as e:
+        db.rollback()
+        print(f"ℹ️ full_name: {e}")
+    
+    # Add phone_number column if missing
+    try:
+        db.execute(text("ALTER TABLE users ADD COLUMN phone_number VARCHAR;"))
+        db.commit()
+        print("✅ Added phone_number")
+    except Exception as e:
+        db.rollback()
+        print(f"ℹ️ phone_number: {e}")
+    
+    # Copy student profile data into users table
+    db.execute(text("""
+        UPDATE users 
+        SET full_name = (
+            SELECT sp.full_name 
+            FROM student_profiles sp 
+            WHERE sp.user_id = users.id
+        )
+        WHERE full_name IS NULL OR full_name = '';
+    """))
+    
+    db.execute(text("""
+        UPDATE users 
+        SET phone_number = (
+            SELECT sp.phone_number 
+            FROM student_profiles sp 
+            WHERE sp.user_id = users.id
+        )
+        WHERE phone_number IS NULL OR phone_number = '';
+    """))
+    
+    db.commit()
+    
+    # Also fix the admin user
+    db.execute(text("""
+        UPDATE users 
+        SET full_name = 'System Administrator', phone_number = '254700000000'
+        WHERE email = 'admin@lotsa.ac.ke' AND (full_name IS NULL OR full_name = '');
+    """))
+    db.commit()
+    
+    return {"message": "Migration complete. You can now delete this endpoint."}
+
+# ==================== WEBSOCKET ====================
 @app.websocket("/api/chats/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     try:
@@ -105,15 +173,18 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
                 db.commit()
                 db.refresh(db_msg)
                 
-                # Fetch sender info
+                # Fetch sender info — check user.full_name for non-students
                 sender = db.query(User).options(
                     joinedload(User.profile)
                 ).filter(User.id == user_id).first()
                 
                 sender_name = "Unknown"
                 if sender:
+                    # Priority: profile.full_name (students) → user.full_name (non-students) → email
                     if sender.profile and sender.profile.full_name:
                         sender_name = sender.profile.full_name
+                    elif sender.full_name:
+                        sender_name = sender.full_name
                     elif sender.email:
                         sender_name = sender.email
                 
