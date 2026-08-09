@@ -13,7 +13,6 @@ from . import schemas, auth as auth_utils
 from .config import SECRET_KEY, ALGORITHM
 from .websocket_manager import manager
 from jose import jwt as jose_jwt
-from sqlalchemy import text
 
 # Create tables
 try:
@@ -94,62 +93,6 @@ app.include_router(settings_router.router, prefix="/api/settings", tags=["settin
 app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
-
-# ==================== TEMPORARY MIGRATION ENDPOINT ====================
-# Hit this ONCE after deploying, then delete this code and redeploy
-@app.get("/run-migration")
-def run_migration():
-    db = next(get_db())
-    
-    # Add full_name column if missing
-    try:
-        db.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR;"))
-        db.commit()
-        print("✅ Added full_name")
-    except Exception as e:
-        db.rollback()
-        print(f"ℹ️ full_name: {e}")
-    
-    # Add phone_number column if missing
-    try:
-        db.execute(text("ALTER TABLE users ADD COLUMN phone_number VARCHAR;"))
-        db.commit()
-        print("✅ Added phone_number")
-    except Exception as e:
-        db.rollback()
-        print(f"ℹ️ phone_number: {e}")
-    
-    # Copy student profile data into users table
-    db.execute(text("""
-        UPDATE users 
-        SET full_name = (
-            SELECT sp.full_name 
-            FROM student_profiles sp 
-            WHERE sp.user_id = users.id
-        )
-        WHERE full_name IS NULL OR full_name = '';
-    """))
-    
-    db.execute(text("""
-        UPDATE users 
-        SET phone_number = (
-            SELECT sp.phone_number 
-            FROM student_profiles sp 
-            WHERE sp.user_id = users.id
-        )
-        WHERE phone_number IS NULL OR phone_number = '';
-    """))
-    
-    # Fix admin user
-    db.execute(text("""
-        UPDATE users 
-        SET full_name = 'System Administrator', phone_number = '254700000000'
-        WHERE email = 'admin@lotsa.ac.ke' AND (full_name IS NULL OR full_name = '');
-    """))
-    
-    db.commit()
-    
-    return {"message": "Migration complete. You can now delete this endpoint."}
 
 # ==================== WEBSOCKET ====================
 @app.websocket("/api/chats/ws")
