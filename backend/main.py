@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import ProgrammingError
 import re
 import traceback
 import json
@@ -31,15 +32,14 @@ def seed_admin():
                 email="admin@lotsa.ac.ke",
                 password_hash=auth_utils.get_password_hash("Admin@123"),
                 role=UserRole.ADMIN,
-                full_name="System Administrator",      # <-- ADDED
-                phone_number="254700000000",           # <-- ADDED
+                full_name="System Administrator",
+                phone_number="254700000000",
                 is_active=True
             )
             db.add(admin)
             db.commit()
             print("✅ Default admin created: admin@lotsa.ac.ke / Admin@123")
         else:
-            # Backfill existing admin if missing full_name
             if not admin.full_name:
                 admin.full_name = "System Administrator"
                 admin.phone_number = admin.phone_number or "254700000000"
@@ -47,6 +47,12 @@ def seed_admin():
                 print("✅ Updated existing admin with full_name")
             else:
                 print("ℹ️ Admin user already exists")
+    except ProgrammingError as e:
+        db.rollback()
+        if "full_name" in str(e) or "phone_number" in str(e):
+            print("⚠️ Database columns missing. Run GET /run-migration first, then restart.")
+        else:
+            print(f"⚠️ Admin seed error: {e}")
     except Exception as e:
         db.rollback()
         print(f"⚠️ Admin seed error: {e}")
@@ -57,7 +63,7 @@ seed_admin()
 
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
-# CORS — allow all origins for now
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -93,7 +99,6 @@ app.include_router(contributions.router, prefix="/api/contributions", tags=["con
 # Hit this ONCE after deploying, then delete this code and redeploy
 @app.get("/run-migration")
 def run_migration():
-    from sqlalchemy.exc import ProgrammingError
     db = next(get_db())
     
     # Add full_name column if missing
@@ -135,14 +140,13 @@ def run_migration():
         WHERE phone_number IS NULL OR phone_number = '';
     """))
     
-    db.commit()
-    
-    # Also fix the admin user
+    # Fix admin user
     db.execute(text("""
         UPDATE users 
         SET full_name = 'System Administrator', phone_number = '254700000000'
         WHERE email = 'admin@lotsa.ac.ke' AND (full_name IS NULL OR full_name = '');
     """))
+    
     db.commit()
     
     return {"message": "Migration complete. You can now delete this endpoint."}
@@ -167,20 +171,17 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
                 conv_id = msg.get("conversation_id")
                 content = msg.get("content")
                 
-                # Save message
                 db_msg = Message(conversation_id=conv_id, sender_id=user_id, content=content)
                 db.add(db_msg)
                 db.commit()
                 db.refresh(db_msg)
                 
-                # Fetch sender info — check user.full_name for non-students
                 sender = db.query(User).options(
                     joinedload(User.profile)
                 ).filter(User.id == user_id).first()
                 
                 sender_name = "Unknown"
                 if sender:
-                    # Priority: profile.full_name (students) → user.full_name (non-students) → email
                     if sender.profile and sender.profile.full_name:
                         sender_name = sender.profile.full_name
                     elif sender.full_name:
