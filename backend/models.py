@@ -34,20 +34,12 @@ class DocumentType(str, enum.Enum):
     STUDENT_DATABASE = "student_database"
     GENERAL = "general"
 
-# ===================================================================
-# FIX: Accept BOTH legacy uppercase names and new lowercase values
-# This lets SQLAlchemy read old "ADMIN" rows AND new "admin" rows
-# ===================================================================
-_UserRole_values = list(dict.fromkeys(
-    [e.value for e in UserRole] + [e.name for e in UserRole]
-))
-
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(Enum(UserRole, values_callable=lambda x: _UserRole_values), default=UserRole.STUDENT)
+    role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x]), default=UserRole.STUDENT)
     full_name = Column(String, nullable=True)
     phone_number = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
