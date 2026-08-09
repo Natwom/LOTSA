@@ -106,25 +106,24 @@ export default function Register() {
     setError('')
     setIsLoading(true)
 
-    // BUILD FORM DATA for the fallback endpoint
-    const payload = new URLSearchParams()
-    payload.append('email', form.email)
-    payload.append('password', form.password)
-    payload.append('full_name', form.full_name)
-    payload.append('phone_number', form.phone_number || '')
-    payload.append('role', form.role)
+    // BUILD JSON PAYLOAD — matches backend schemas.RegisterRequest
+    const payload = {
+      email: form.email,
+      password: form.password,
+      full_name: form.full_name,
+      phone_number: form.phone_number || '',
+      role: form.role,
+    }
 
     if (isStudent) {
-      payload.append('admission_number', form.admission_number)
-      payload.append('course', form.course)
-      payload.append('year_of_study', form.year_of_study)
+      payload.admission_number = form.admission_number
+      payload.course = form.course
+      payload.year_of_study = parseInt(form.year_of_study, 10)
     }
 
     try {
-      // CRITICAL: Use /auth/register-fallback NOT /auth/register
-      const res = await axios.post('/auth/register-fallback', payload, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-      })
+      // FIXED: Use the correct endpoint /auth/register with JSON
+      const res = await axios.post('/auth/register', payload)
       console.log('Registration success:', res.data)
       setSuccess(true)
       setTimeout(() => navigate('/login'), 2500)
