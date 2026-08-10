@@ -12,9 +12,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=Fals
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
-# ===================================================================
-# FIX: bcrypt has a 72-byte limit. Truncate passwords before hashing/verifying.
-# ===================================================================
 def _truncate_password(password: str) -> bytes:
     """Truncate password to 72 bytes to avoid bcrypt ValueError."""
     return password.encode('utf-8')[:72]
@@ -49,7 +46,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
 
-    # CRITICAL: Eager-load profile so current_user.profile is available everywhere
     user = db.query(models.User).options(
         joinedload(models.User.profile)
     ).filter(models.User.id == int(user_id)).first()
