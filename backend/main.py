@@ -30,10 +30,11 @@ def seed_admin():
         admin = db.query(User).filter(User.email == "admin@lotsa.ac.ke").first()
         if not admin:
             try:
+                # FIX: Use plain string "admin" instead of UserRole.ADMIN
                 admin = User(
                     email="admin@lotsa.ac.ke",
                     password_hash=auth_utils.get_password_hash("Admin@123"),
-                    role=UserRole.ADMIN,
+                    role="admin",
                     full_name="System Administrator",
                     phone_number="254700000000",
                     is_active=True
@@ -43,7 +44,7 @@ def seed_admin():
                 print("✅ Default admin created: admin@lotsa.ac.ke / Admin@123")
             except Exception as e:
                 db.rollback()
-                print(f"⚠️ Could not create admin (run /run-migration first if enum error): {e}")
+                print(f"⚠️ Could not create admin: {e}")
         else:
             if not admin.full_name:
                 admin.full_name = "System Administrator"
@@ -69,7 +70,7 @@ seed_admin()
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
 # ===================================================================
-# FIXED CORS: allow_credentials=False when using allow_origins=["*"]
+# FIXED CORS
 # ===================================================================
 app.add_middleware(
     CORSMiddleware,
@@ -80,7 +81,7 @@ app.add_middleware(
 )
 
 # ===================================================================
-# NUCLEAR OVERRIDE: Register endpoint in main.py BEFORE auth router
+# NUCLEAR OVERRIDE: Register endpoint
 # ===================================================================
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_main(user: schemas.RegisterRequest, db: Session = Depends(get_db)):
@@ -171,7 +172,6 @@ def run_migration():
     db = next(get_db())
     results = []
     
-    # Add missing columns
     for col, col_type in [("full_name", "VARCHAR"), ("phone_number", "VARCHAR")]:
         try:
             db.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type};"))
@@ -181,7 +181,6 @@ def run_migration():
             db.rollback()
             results.append(f"ℹ️ {col}: already exists")
     
-    # Backfill data
     db.execute(text("""
         UPDATE users SET full_name = COALESCE((SELECT sp.full_name FROM student_profiles sp WHERE sp.user_id = users.id), full_name)
         WHERE full_name IS NULL OR full_name = '';
@@ -194,10 +193,7 @@ def run_migration():
     db.commit()
     results.append("✅ Backfilled data")
     
-    # ===================================================================
-    # CRITICAL FIX: Rename old uppercase enum values to lowercase
-    # This instantly fixes all existing users without touching rows
-    # ===================================================================
+    # Rename any legacy uppercase enum values to lowercase
     renames = [
         ('STUDENT', 'student'),
         ('ADMIN', 'admin'),
@@ -212,7 +208,6 @@ def run_migration():
             db.rollback()
             results.append(f"ℹ️ '{old}' rename: already lowercase or not found")
     
-    # Ensure all lowercase values exist in enum
     for val in ['student', 'admin', 'leader', 'patron', 'deputy_patron', 'committee_member']:
         try:
             db.execute(text(f"ALTER TYPE userrole ADD VALUE '{val}';"))
