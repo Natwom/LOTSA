@@ -1,9 +1,10 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table, Enum, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 import enum
 from .database import Base
 
+# Keep Python enums for app logic / Pydantic — but DB columns are now plain String
 class UserRole(str, enum.Enum):
     STUDENT = "student"
     ADMIN = "admin"
@@ -39,7 +40,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.STUDENT)
+    role = Column(String, default="student")  # FIX: was Enum(UserRole)
     full_name = Column(String, nullable=True)
     phone_number = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -78,7 +79,7 @@ class MembershipCard(Base):
     issue_date = Column(DateTime, default=datetime.utcnow)
     expiry_date = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=False)
-    payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    payment_status = Column(String, default="pending")  # FIX: was Enum(PaymentStatus)
     amount_paid = Column(Integer, default=0)
     mpesa_receipt = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -92,7 +93,7 @@ class Payment(Base):
     amount = Column(Integer, nullable=False)
     payment_method = Column(String, default="mpesa")
     mpesa_receipt = Column(String, nullable=True)
-    status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    status = Column(String, default="pending")  # FIX: was Enum(PaymentStatus)
     description = Column(String, default="Membership Card")
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -117,7 +118,7 @@ class Event(Base):
     banner_url = Column(String)
     location = Column(String)
     event_date = Column(DateTime)
-    category = Column(Enum(EventCategory))
+    category = Column(String)  # FIX: was Enum(EventCategory)
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     registrations = relationship("EventRegistration", back_populates="event")
@@ -180,7 +181,7 @@ class Complaint(Base):
     description = Column(Text, nullable=False)
     category = Column(String, default="general")
     is_anonymous = Column(Boolean, default=False)
-    status = Column(Enum(ComplaintStatus), default=ComplaintStatus.PENDING)
+    status = Column(String, default="pending")  # FIX: was Enum(ComplaintStatus)
     admin_response = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -258,7 +259,7 @@ class Document(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    file_type = Column(Enum(DocumentType), default=DocumentType.GENERAL)
+    file_type = Column(String, default="general")  # FIX: was Enum(DocumentType)
     file_url = Column(String, nullable=False)
     file_public_id = Column(String, nullable=True)
     file_name = Column(String, nullable=False)
@@ -292,7 +293,7 @@ class ContributionPayment(Base):
     amount = Column(Integer, nullable=False)
     payment_method = Column(String, default="mpesa")
     mpesa_receipt = Column(String, nullable=True)
-    status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    status = Column(String, default="pending")  # FIX: was Enum(PaymentStatus)
     paid_at = Column(DateTime, default=datetime.utcnow)
     verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     verified_at = Column(DateTime, nullable=True)

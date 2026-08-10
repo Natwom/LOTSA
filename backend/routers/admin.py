@@ -66,7 +66,7 @@ def get_pending_payments(
             "amount": p.amount,
             "payment_method": p.payment_method,
             "mpesa_receipt": p.mpesa_receipt,
-            "status": p.status.value if hasattr(p.status, 'value') else str(p.status),
+            "status": p.status,
             "description": p.description,
             "created_at": p.created_at,
             "user": {
@@ -95,7 +95,7 @@ def approve_payment(
     card = db.query(models.MembershipCard).filter_by(user_id=payment.user_id).first()
     if card:
         card.is_active = True
-        card.payment_status = models.PaymentStatus.COMPLETED
+        card.payment_status = 'completed'
         card.amount_paid = payment.amount
         card.mpesa_receipt = payment.mpesa_receipt
         card.expiry_date = datetime.utcnow() + timedelta(days=365)
@@ -104,14 +104,14 @@ def approve_payment(
             user_id=payment.user_id,
             card_number=_generate_card_number(db),
             expiry_date=datetime.utcnow() + timedelta(days=365),
-            payment_status=models.PaymentStatus.COMPLETED,
+            payment_status='completed',
             is_active=True,
             amount_paid=payment.amount,
             mpesa_receipt=payment.mpesa_receipt
         )
         db.add(card)
 
-    payment.status = models.PaymentStatus.COMPLETED
+    payment.status = 'completed'
     db.commit()
     db.refresh(card)
 
@@ -132,7 +132,7 @@ def reject_payment(
     if not payment:
         raise HTTPException(status_code=404, detail="Pending payment not found")
 
-    payment.status = models.PaymentStatus.FAILED
+    payment.status = 'failed'
     db.commit()
 
     return {
@@ -201,7 +201,7 @@ def event_participation_report(
         event_data.append({
             "id": event.id,
             "title": event.title,
-            "category": event.category.value if event.category else None,
+            "category": event.category,
             "event_date": event.event_date.isoformat() if event.event_date else None,
             "location": event.location,
             "total_registered": total_reg,
@@ -286,7 +286,7 @@ def complaints_resolution_report(
     complaint_data = []
     
     for c in complaints:
-        status_val = c.status.value if hasattr(c.status, 'value') else str(c.status)
+        status_val = c.status
         status_counts[status_val] = status_counts.get(status_val, 0) + 1
         
         resolution_time = None

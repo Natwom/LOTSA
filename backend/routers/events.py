@@ -185,7 +185,7 @@ def get_event_attendees(
             "title": event.title,
             "event_date": event.event_date,
             "location": event.location,
-            "category": event.category.value if event.category else None
+            "category": event.category  # FIX: removed .value
         },
         "stats": {
             "total_registered": total_registered,

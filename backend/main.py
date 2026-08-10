@@ -16,6 +16,33 @@ from .websocket_manager import manager
 from jose import jwt as jose_jwt
 from sqlalchemy import text
 
+# ===================================================================
+# CRITICAL FIX: Convert enum columns to VARCHAR before anything else
+# ===================================================================
+def migrate_columns_to_varchar():
+    db = Session(bind=engine)
+    alter_statements = [
+        "ALTER TABLE users ALTER COLUMN role TYPE VARCHAR USING role::text;",
+        "ALTER TABLE events ALTER COLUMN category TYPE VARCHAR USING category::text;",
+        "ALTER TABLE complaints ALTER COLUMN status TYPE VARCHAR USING status::text;",
+        "ALTER TABLE membership_cards ALTER COLUMN payment_status TYPE VARCHAR USING payment_status::text;",
+        "ALTER TABLE payments ALTER COLUMN status TYPE VARCHAR USING status::text;",
+        "ALTER TABLE contribution_payments ALTER COLUMN status TYPE VARCHAR USING status::text;",
+        "ALTER TABLE documents ALTER COLUMN file_type TYPE VARCHAR USING file_type::text;",
+    ]
+    for sql in alter_statements:
+        try:
+            db.execute(text(sql))
+            db.commit()
+            print(f"✅ {sql}")
+        except Exception as e:
+            db.rollback()
+            # Already varchar or other non-critical error
+            pass
+    db.close()
+
+migrate_columns_to_varchar()
+
 # Create tables
 try:
     Base.metadata.create_all(bind=engine)
@@ -65,47 +92,6 @@ def seed_admin():
         db.close()
 
 seed_admin()
-
-# ===================================================================
-# CRITICAL FIX: Rename ALL legacy uppercase enum values to lowercase
-# on every startup. If already lowercase, the ALTER fails silently.
-# ===================================================================
-def migrate_enums():
-    db = Session(bind=engine)
-    enum_renames = {
-        "userrole": [
-            ("STUDENT", "student"), ("ADMIN", "admin"), ("LEADER", "leader"),
-            ("PATRON", "patron"), ("DEPUTY_PATRON", "deputy_patron"), ("COMMITTEE_MEMBER", "committee_member")
-        ],
-        "eventcategory": [
-            ("MEETING", "meeting"), ("SPORTS", "sports"), ("CULTURAL", "cultural"),
-            ("ACADEMIC", "academic"), ("ELECTION", "election")
-        ],
-        "complaintstatus": [
-            ("PENDING", "pending"), ("IN_REVIEW", "in_review"), ("RESOLVED", "resolved")
-        ],
-        "paymentstatus": [
-            ("PENDING", "pending"), ("COMPLETED", "completed"), ("FAILED", "failed")
-        ],
-        "documenttype": [
-            ("CONSTITUTION", "constitution"), ("STUDENT_DATABASE", "student_database"), ("GENERAL", "general")
-        ],
-    }
-    try:
-        for enum_name, renames in enum_renames.items():
-            for old_val, new_val in renames:
-                try:
-                    db.execute(text(f"ALTER TYPE {enum_name} RENAME VALUE '{old_val}' TO '{new_val}';"))
-                    db.commit()
-                    print(f"✅ Renamed {enum_name} '{old_val}' → '{new_val}'")
-                except Exception:
-                    db.rollback()
-    except Exception as e:
-        print(f"⚠️ Enum migration error: {e}")
-    finally:
-        db.close()
-
-migrate_enums()
 
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
