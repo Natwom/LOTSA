@@ -14,14 +14,13 @@ def list_events(
     upcoming: bool = False,
     category: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_active_user)
+    db: Session = Depends(database.get_db)
 ):
     query = db.query(models.Event)
     if upcoming:
         query = query.filter(models.Event.event_date >= datetime.utcnow())
     if category:
-        query = query.filter(models.Event.category == category)
+        query = query.filter(models.Event.category == category.lower())
     return query.order_by(models.Event.event_date.asc()).limit(limit).all()
 
 @router.get("/{event_id}", response_model=schemas.EventOut)
@@ -89,7 +88,6 @@ def create_event(
     db: Session = Depends(database.get_db),
     admin: models.User = Depends(auth.require_admin)
 ):
-    # >>> FIX: Pass the admin's user ID as created_by
     db_event = models.Event(**event.model_dump(), created_by=admin.id)
     db.add(db_event)
     db.commit()

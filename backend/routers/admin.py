@@ -2,13 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List
 from .. import models, schemas, database, auth
 
 router = APIRouter()
 
 def _generate_card_number(db: Session):
-    """Generate unique membership card number: LOTSA-XXXXXX"""
     import random
     while True:
         num = f"LOTSA-{random.randint(100000, 999999)}"
@@ -19,17 +18,19 @@ def _generate_card_number(db: Session):
 @router.get("/dashboard/stats")
 def get_stats(current_user: models.User = Depends(auth.require_admin), db: Session = Depends(database.get_db)):
     return {
-        "total_students": db.query(models.User).filter_by(role=models.UserRole.STUDENT).count(),
-        "active_members": db.query(models.MembershipCard).filter_by(is_active=True).count(),
-        "upcoming_events": db.query(models.Event).filter(models.Event.event_date > func.now()).count(),
-        "active_elections": db.query(models.Election).filter_by(is_active=True).count(),
-        "pending_complaints": db.query(models.Complaint).filter_by(status=models.ComplaintStatus.PENDING).count(),
-        "pending_payments": db.query(models.Payment).filter_by(status=models.PaymentStatus.PENDING).count(),
+        "total_students": db.query(func.count(models.User.id)).filter(models.User.role == 'student').scalar() or 0,
+        "active_members": db.query(func.count(models.MembershipCard.id)).filter_by(is_active=True).scalar() or 0,
+        "upcoming_events": db.query(func.count(models.Event.id)).filter(models.Event.event_date > func.now()).scalar() or 0,
+        "active_elections": db.query(func.count(models.Election.id)).filter_by(is_active=True).scalar() or 0,
+        "pending_complaints": db.query(func.count(models.Complaint.id)).filter(models.Complaint.status == 'pending').scalar() or 0,
+        "pending_payments": db.query(func.count(models.Payment.id)).filter(models.Payment.status == 'pending').scalar() or 0,
     }
 
 @router.get("/students", response_model=List[schemas.UserOut])
 def get_all_students(current_user: models.User = Depends(auth.require_admin), db: Session = Depends(database.get_db)):
-    return db.query(models.User).filter_by(role=models.UserRole.STUDENT).all()
+    return db.query(models.User).options(
+        joinedload(models.User.profile)
+    ).filter(models.User.role == 'student').all()
 
 @router.put("/students/{student_id}/status")
 def update_status(student_id: int, is_active: bool, current_user: models.User = Depends(auth.require_admin), db: Session = Depends(database.get_db)):
@@ -42,12 +43,12 @@ def update_status(student_id: int, is_active: bool, current_user: models.User = 
 
 @router.get("/complaints", response_model=List[schemas.ComplaintOut])
 def get_all_complaints(status: str = None, current_user: models.User = Depends(auth.require_admin), db: Session = Depends(database.get_db)):
-    query = db.query(models.Complaint)
+    query = db.query(models.Complaint).options(
+        joinedload(models.Complaint.student).joinedload(models.User.profile)
+    )
     if status:
-        query = query.filter_by(status=status)
+        query = query.filter(models.Complaint.status == status)
     return query.order_by(models.Complaint.created_at.desc()).all()
-
-# ─── MEMBERSHIP PAYMENT ADMIN ───
 
 @router.get("/payments/pending")
 def get_pending_payments(
@@ -56,7 +57,7 @@ def get_pending_payments(
 ):
     payments = db.query(models.Payment).options(
         joinedload(models.Payment.user).joinedload(models.User.profile)
-    ).filter_by(status=models.PaymentStatus.PENDING).order_by(models.Payment.created_at.desc()).all()
+    ).filter(models.Payment.status == 'pending').order_by(models.Payment.created_at.desc()).all()
 
     return [
         {
@@ -65,7 +66,7 @@ def get_pending_payments(
             "amount": p.amount,
             "payment_method": p.payment_method,
             "mpesa_receipt": p.mpesa_receipt,
-            "status": p.status.value if p.status else None,
+            "status": p.status.value if hasattr(p.status, 'value') else str(p.status),
             "description": p.description,
             "created_at": p.created_at,
             "user": {
@@ -87,7 +88,7 @@ def approve_payment(
     current_user: models.User = Depends(auth.require_admin),
     db: Session = Depends(database.get_db)
 ):
-    payment = db.query(models.Payment).filter_by(id=payment_id, status=models.PaymentStatus.PENDING).first()
+    payment = db.query(models.Payment).filter_by(id=payment_id, status='pending').first()
     if not payment:
         raise HTTPException(status_code=404, detail="Pending payment not found")
 
@@ -127,7 +128,7 @@ def reject_payment(
     current_user: models.User = Depends(auth.require_admin),
     db: Session = Depends(database.get_db)
 ):
-    payment = db.query(models.Payment).filter_by(id=payment_id, status=models.PaymentStatus.PENDING).first()
+    payment = db.query(models.Payment).filter_by(id=payment_id, status='pending').first()
     if not payment:
         raise HTTPException(status_code=404, detail="Pending payment not found")
 
@@ -138,20 +139,16 @@ def reject_payment(
         "message": "Payment rejected" + (f": {reason}" if reason else "")
     }
 
-# ==================== REPORTS & ANALYTICS ENDPOINTS ====================
-
 @router.get("/reports/student-enrollment")
 def student_enrollment_report(
     format: str = "json",
     current_user: models.User = Depends(auth.require_admin),
     db: Session = Depends(database.get_db)
 ):
-    """Student enrollment report with department/year breakdown"""
-    students = db.query(models.User).filter_by(role=models.UserRole.STUDENT).options(
+    students = db.query(models.User).filter(models.User.role == 'student').options(
         joinedload(models.User.profile)
     ).all()
     
-    # Enrollment by course
     course_counts = {}
     year_counts = {}
     for s in students:
@@ -161,7 +158,7 @@ def student_enrollment_report(
             course_counts[course] = course_counts.get(course, 0) + 1
             year_counts[year] = year_counts.get(year, 0) + 1
     
-    data = {
+    return {
         "generated_at": datetime.utcnow().isoformat(),
         "total_students": len(students),
         "by_course": course_counts,
@@ -181,7 +178,6 @@ def student_enrollment_report(
             for s in students
         ]
     }
-    return data
 
 @router.get("/reports/event-participation")
 def event_participation_report(
@@ -189,7 +185,6 @@ def event_participation_report(
     current_user: models.User = Depends(auth.require_admin),
     db: Session = Depends(database.get_db)
 ):
-    """Event participation and attendance report"""
     events = db.query(models.Event).order_by(models.Event.event_date.desc()).all()
     
     event_data = []
@@ -226,7 +221,6 @@ def election_results_report(
     current_user: models.User = Depends(auth.require_admin),
     db: Session = Depends(database.get_db)
 ):
-    """Election results with vote counts per candidate"""
     elections = db.query(models.Election).order_by(models.Election.created_at.desc()).all()
     
     election_data = []
@@ -254,7 +248,6 @@ def election_results_report(
                 "vote_percentage": round((vote_count / total_votes * 100), 1) if total_votes > 0 else 0
             })
         
-        # Sort by votes descending
         candidate_results.sort(key=lambda x: x["vote_count"], reverse=True)
         
         election_data.append({
@@ -281,7 +274,6 @@ def complaints_resolution_report(
     current_user: models.User = Depends(auth.require_admin),
     db: Session = Depends(database.get_db)
 ):
-    """Complaints resolution status and response times"""
     complaints = db.query(models.Complaint).order_by(models.Complaint.created_at.desc()).all()
     
     status_counts = {
@@ -294,13 +286,13 @@ def complaints_resolution_report(
     complaint_data = []
     
     for c in complaints:
-        status_counts[c.status.value] = status_counts.get(c.status.value, 0) + 1
+        status_val = c.status.value if hasattr(c.status, 'value') else str(c.status)
+        status_counts[status_val] = status_counts.get(status_val, 0) + 1
         
-        # Calculate resolution time if resolved
         resolution_time = None
-        if c.status == models.ComplaintStatus.RESOLVED and c.updated_at and c.created_at:
+        if status_val == 'resolved' and c.updated_at and c.created_at:
             delta = c.updated_at - c.created_at
-            resolution_time = round(delta.total_seconds() / 3600, 1)  # hours
+            resolution_time = round(delta.total_seconds() / 3600, 1)
         
         if resolution_time is not None:
             resolution_times.append(resolution_time)
@@ -309,7 +301,7 @@ def complaints_resolution_report(
             "id": c.id,
             "title": c.title,
             "category": c.category,
-            "status": c.status.value,
+            "status": status_val,
             "is_anonymous": c.is_anonymous,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "updated_at": c.updated_at.isoformat() if c.updated_at else None,
@@ -333,31 +325,24 @@ def platform_analytics_report(
     current_user: models.User = Depends(auth.require_admin),
     db: Session = Depends(database.get_db)
 ):
-    """Platform usage analytics"""
-    # User activity
     total_users = db.query(func.count(models.User.id)).scalar() or 0
     active_users = db.query(func.count(models.User.id)).filter_by(is_active=True).scalar() or 0
     
-    # Messages in last 30 days
     thirty_days_ago = datetime.utcnow() - timedelta(days=30)
     recent_messages = db.query(func.count(models.Message.id)).filter(
         models.Message.created_at >= thirty_days_ago
     ).scalar() or 0
     
-    # Active conversations
     total_conversations = db.query(func.count(models.Conversation.id)).scalar() or 0
     group_conversations = db.query(func.count(models.Conversation.id)).filter_by(is_group=True).scalar() or 0
     
-    # Membership stats
     total_memberships = db.query(func.count(models.MembershipCard.id)).scalar() or 0
     active_memberships = db.query(func.count(models.MembershipCard.id)).filter_by(is_active=True).scalar() or 0
     
-    # Payment stats
     total_payments = db.query(func.count(models.Payment.id)).scalar() or 0
-    completed_payments = db.query(func.count(models.Payment.id)).filter_by(status=models.PaymentStatus.COMPLETED).scalar() or 0
-    total_revenue = db.query(func.sum(models.Payment.amount)).filter_by(status=models.PaymentStatus.COMPLETED).scalar() or 0
+    completed_payments = db.query(func.count(models.Payment.id)).filter(models.Payment.status == 'completed').scalar() or 0
+    total_revenue = db.query(func.sum(models.Payment.amount)).filter(models.Payment.status == 'completed').scalar() or 0
     
-    # Leader count
     total_leaders = db.query(func.count(models.Leader.id)).filter_by(is_active=True).scalar() or 0
     
     return {
