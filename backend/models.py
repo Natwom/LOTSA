@@ -34,12 +34,22 @@ class DocumentType(str, enum.Enum):
     STUDENT_DATABASE = "student_database"
     GENERAL = "general"
 
+# ===================================================================
+# FIX: Accept BOTH legacy uppercase names and new lowercase values
+# for ALL enums. This lets SQLAlchemy read old AND new rows.
+# ===================================================================
+_UserRole_values = list(dict.fromkeys([e.value for e in UserRole] + [e.name for e in UserRole]))
+_ComplaintStatus_values = list(dict.fromkeys([e.value for e in ComplaintStatus] + [e.name for e in ComplaintStatus]))
+_EventCategory_values = list(dict.fromkeys([e.value for e in EventCategory] + [e.name for e in EventCategory]))
+_PaymentStatus_values = list(dict.fromkeys([e.value for e in PaymentStatus] + [e.name for e in PaymentStatus]))
+_DocumentType_values = list(dict.fromkeys([e.value for e in DocumentType] + [e.name for e in DocumentType]))
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x]), default=UserRole.STUDENT)
+    role = Column(Enum(UserRole, values_callable=lambda x: _UserRole_values), default=UserRole.STUDENT)
     full_name = Column(String, nullable=True)
     phone_number = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -78,7 +88,7 @@ class MembershipCard(Base):
     issue_date = Column(DateTime, default=datetime.utcnow)
     expiry_date = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=False)
-    payment_status = Column(Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]), default=PaymentStatus.PENDING)
+    payment_status = Column(Enum(PaymentStatus, values_callable=lambda x: _PaymentStatus_values), default=PaymentStatus.PENDING)
     amount_paid = Column(Integer, default=0)
     mpesa_receipt = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -92,7 +102,7 @@ class Payment(Base):
     amount = Column(Integer, nullable=False)
     payment_method = Column(String, default="mpesa")
     mpesa_receipt = Column(String, nullable=True)
-    status = Column(Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]), default=PaymentStatus.PENDING)
+    status = Column(Enum(PaymentStatus, values_callable=lambda x: _PaymentStatus_values), default=PaymentStatus.PENDING)
     description = Column(String, default="Membership Card")
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -117,7 +127,7 @@ class Event(Base):
     banner_url = Column(String)
     location = Column(String)
     event_date = Column(DateTime)
-    category = Column(Enum(EventCategory, values_callable=lambda x: [e.value for e in x]))
+    category = Column(Enum(EventCategory, values_callable=lambda x: _EventCategory_values))
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     registrations = relationship("EventRegistration", back_populates="event")
@@ -180,7 +190,7 @@ class Complaint(Base):
     description = Column(Text, nullable=False)
     category = Column(String, default="general")
     is_anonymous = Column(Boolean, default=False)
-    status = Column(Enum(ComplaintStatus, values_callable=lambda x: [e.value for e in x]), default=ComplaintStatus.PENDING)
+    status = Column(Enum(ComplaintStatus, values_callable=lambda x: _ComplaintStatus_values), default=ComplaintStatus.PENDING)
     admin_response = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -258,7 +268,7 @@ class Document(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    file_type = Column(Enum(DocumentType, values_callable=lambda x: [e.value for e in x]), default=DocumentType.GENERAL)
+    file_type = Column(Enum(DocumentType, values_callable=lambda x: _DocumentType_values), default=DocumentType.GENERAL)
     file_url = Column(String, nullable=False)
     file_public_id = Column(String, nullable=True)
     file_name = Column(String, nullable=False)
@@ -292,7 +302,7 @@ class ContributionPayment(Base):
     amount = Column(Integer, nullable=False)
     payment_method = Column(String, default="mpesa")
     mpesa_receipt = Column(String, nullable=True)
-    status = Column(Enum(PaymentStatus, values_callable=lambda x: [e.value for e in x]), default=PaymentStatus.PENDING)
+    status = Column(Enum(PaymentStatus, values_callable=lambda x: _PaymentStatus_values), default=PaymentStatus.PENDING)
     paid_at = Column(DateTime, default=datetime.utcnow)
     verified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     verified_at = Column(DateTime, nullable=True)
