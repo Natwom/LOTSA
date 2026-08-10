@@ -30,7 +30,6 @@ def seed_admin():
         admin = db.query(User).filter(User.email == "admin@lotsa.ac.ke").first()
         if not admin:
             try:
-                # FIX: Use plain string "admin" instead of UserRole.ADMIN
                 admin = User(
                     email="admin@lotsa.ac.ke",
                     password_hash=auth_utils.get_password_hash("Admin@123"),
@@ -66,6 +65,47 @@ def seed_admin():
         db.close()
 
 seed_admin()
+
+# ===================================================================
+# CRITICAL FIX: Rename ALL legacy uppercase enum values to lowercase
+# on every startup. If already lowercase, the ALTER fails silently.
+# ===================================================================
+def migrate_enums():
+    db = Session(bind=engine)
+    enum_renames = {
+        "userrole": [
+            ("STUDENT", "student"), ("ADMIN", "admin"), ("LEADER", "leader"),
+            ("PATRON", "patron"), ("DEPUTY_PATRON", "deputy_patron"), ("COMMITTEE_MEMBER", "committee_member")
+        ],
+        "eventcategory": [
+            ("MEETING", "meeting"), ("SPORTS", "sports"), ("CULTURAL", "cultural"),
+            ("ACADEMIC", "academic"), ("ELECTION", "election")
+        ],
+        "complaintstatus": [
+            ("PENDING", "pending"), ("IN_REVIEW", "in_review"), ("RESOLVED", "resolved")
+        ],
+        "paymentstatus": [
+            ("PENDING", "pending"), ("COMPLETED", "completed"), ("FAILED", "failed")
+        ],
+        "documenttype": [
+            ("CONSTITUTION", "constitution"), ("STUDENT_DATABASE", "student_database"), ("GENERAL", "general")
+        ],
+    }
+    try:
+        for enum_name, renames in enum_renames.items():
+            for old_val, new_val in renames:
+                try:
+                    db.execute(text(f"ALTER TYPE {enum_name} RENAME VALUE '{old_val}' TO '{new_val}';"))
+                    db.commit()
+                    print(f"✅ Renamed {enum_name} '{old_val}' → '{new_val}'")
+                except Exception:
+                    db.rollback()
+    except Exception as e:
+        print(f"⚠️ Enum migration error: {e}")
+    finally:
+        db.close()
+
+migrate_enums()
 
 app = FastAPI(title="LOTSA CONNECT API", version="2.0.0")
 
@@ -192,30 +232,6 @@ def run_migration():
     db.execute(text("UPDATE users SET full_name = 'System Administrator', phone_number = '254700000000' WHERE email = 'admin@lotsa.ac.ke';"))
     db.commit()
     results.append("✅ Backfilled data")
-    
-    # Rename any legacy uppercase enum values to lowercase
-    renames = [
-        ('STUDENT', 'student'),
-        ('ADMIN', 'admin'),
-        ('LEADER', 'leader'),
-    ]
-    for old, new in renames:
-        try:
-            db.execute(text(f"ALTER TYPE userrole RENAME VALUE '{old}' TO '{new}';"))
-            db.commit()
-            results.append(f"✅ Renamed enum '{old}' → '{new}'")
-        except Exception as e:
-            db.rollback()
-            results.append(f"ℹ️ '{old}' rename: already lowercase or not found")
-    
-    for val in ['student', 'admin', 'leader', 'patron', 'deputy_patron', 'committee_member']:
-        try:
-            db.execute(text(f"ALTER TYPE userrole ADD VALUE '{val}';"))
-            db.commit()
-            results.append(f"✅ Added '{val}' to enum")
-        except Exception as e:
-            db.rollback()
-            results.append(f"ℹ️ '{val}' already in enum")
     
     return {"message": "Migration complete", "details": results}
 
