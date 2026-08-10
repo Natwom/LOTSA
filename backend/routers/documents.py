@@ -25,10 +25,11 @@ async def upload_document(
     # resource_type is auto-detected in cloudinary_utils (raw for PDFs/docs, auto for images)
     upload = upload_file(file, folder="lotsa/documents")
     
+    # FIX: DB column is String, not Enum — pass the string directly
     db_doc = models.Document(
         title=title,
         description=description,
-        file_type=models.DocumentType(file_type),
+        file_type=file_type,
         file_url=upload["url"],
         file_public_id=upload["public_id"],
         file_name=file.filename,

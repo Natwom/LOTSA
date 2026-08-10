@@ -60,6 +60,7 @@ def get_current_active_user(current_user: models.User = Depends(get_current_user
     return current_user
 
 def require_admin(current_user: models.User = Depends(get_current_active_user)):
+    # SAFE: handles both Enum and plain string roles
     role = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
     if role not in ['admin', 'leader']:
         raise HTTPException(status_code=403, detail="Admin access required")

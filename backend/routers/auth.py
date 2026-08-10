@@ -46,7 +46,6 @@ def validate_kenyan_phone(phone: str):
 
 @router.post("/register", response_model=schemas.UserOut)
 def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_db)):
-    # CRITICAL DEBUG: Show exactly what Pydantic gave us
     print(f"[REGISTER] email={user.email}")
     print(f"[REGISTER] user.role type={type(user.role)}, repr={repr(user.role)}")
     
@@ -55,7 +54,7 @@ def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_d
         if existing_user:
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        # EXTRACT LOWERCASE STRING VALUE - THIS IS THE FIX
+        # EXTRACT LOWERCASE STRING VALUE
         if hasattr(user.role, 'value'):
             role_str = str(user.role.value).lower()
         else:
@@ -73,7 +72,6 @@ def register(user: schemas.RegisterRequest, db: Session = Depends(database.get_d
         hashed = auth_utils.get_password_hash(user.password)
         print(f"[REGISTER] hash created, len={len(hashed)}")
 
-        # Pass the plain string - SQLAlchemy will handle it
         db_user = models.User(
             email=user.email,
             password_hash=hashed,
@@ -124,12 +122,15 @@ def login(form_data: schemas.LoginRequest, db: Session = Depends(database.get_db
         print("[LOGIN] password mismatch")
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     
+    # FIX: role is a plain string in the DB — use safe accessor
+    role = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    
     expires = timedelta(minutes=auth_utils.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = auth_utils.create_access_token(
-        data={"sub": str(user.id), "role": user.role.value},
+        data={"sub": str(user.id), "role": role},
         expires_delta=expires
     )
-    return {"access_token": token, "token_type": "bearer", "role": user.role.value}
+    return {"access_token": token, "token_type": "bearer", "role": role}
 
 @router.get("/me", response_model=schemas.UserOut)
 def read_me(current_user: models.User = Depends(auth_utils.get_current_active_user)):

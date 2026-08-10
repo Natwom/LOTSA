@@ -173,8 +173,9 @@ def results(
     if not election:
         raise HTTPException(status_code=404, detail="Election not found")
 
+    # FIX: compare string role to string literals (not Enum members)
     if (
-        current_user.role not in [models.UserRole.ADMIN, models.UserRole.LEADER]
+        current_user.role not in ['admin', 'leader']
         and election.end_time > datetime.utcnow()
     ):
         raise HTTPException(status_code=403, detail="Results not available yet")

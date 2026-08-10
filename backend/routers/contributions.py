@@ -67,7 +67,8 @@ def verify_payment(
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     
-    payment.status = models.PaymentStatus.COMPLETED
+    # FIX: use string literal instead of Enum
+    payment.status = "completed"
     payment.verified_by = admin.id
     payment.verified_at = datetime.utcnow()
     db.commit()
@@ -91,12 +92,13 @@ def get_contribution_stats(
 ):
     total_periods = db.query(func.count(models.ContributionPeriod.id)).scalar()
     total_payments = db.query(func.count(models.ContributionPayment.id)).scalar()
+    # FIX: compare String column to string literals
     total_collected = db.query(func.sum(models.ContributionPayment.amount)).filter(
-        models.ContributionPayment.status == models.PaymentStatus.COMPLETED
+        models.ContributionPayment.status == "completed"
     ).scalar() or 0
     
     pending_payments = db.query(func.count(models.ContributionPayment.id)).filter(
-        models.ContributionPayment.status == models.PaymentStatus.PENDING
+        models.ContributionPayment.status == "pending"
     ).scalar()
     
     return {
@@ -128,13 +130,14 @@ def make_payment(
     if existing:
         raise HTTPException(status_code=400, detail="You have already submitted a payment for this period")
     
+    # FIX: use string literal instead of Enum
     db_payment = models.ContributionPayment(
         user_id=current_user.id,
         period_id=payment.period_id,
         amount=payment.amount,
         payment_method=payment.payment_method,
         mpesa_receipt=payment.mpesa_receipt,
-        status=models.PaymentStatus.PENDING
+        status="pending"
     )
     db.add(db_payment)
     db.commit()
@@ -176,6 +179,7 @@ def my_contribution_status(
             models.ContributionPayment.period_id == period.id
         ).first()
         
+        # FIX: payment.status is already a string — no .value needed
         result.append({
             "period": {
                 "id": period.id,
@@ -185,10 +189,11 @@ def my_contribution_status(
                 "amount": period.amount,
                 "due_date": period.due_date
             },
-            "payment_status": payment.status.value if payment else "unpaid",
+            "payment_status": payment.status if payment else "unpaid",
             "paid_amount": payment.amount if payment else 0,
             "paid_at": payment.paid_at if payment else None,
-            "verified": payment.status == models.PaymentStatus.COMPLETED if payment else False
+            # FIX: compare string to string literal
+            "verified": payment.status == "completed" if payment else False
         })
     
     return result

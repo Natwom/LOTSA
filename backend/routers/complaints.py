@@ -22,7 +22,8 @@ def update_status(complaint_id: int, data: schemas.ComplaintStatusUpdate, curren
     c = db.query(models.Complaint).filter(models.Complaint.id == complaint_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Not found")
-    c.status = data.status
+    # FIX: ensure we store a string, not an Enum member
+    c.status = data.status.value if hasattr(data.status, 'value') else str(data.status)
     db.commit()
     db.refresh(c)
     return c

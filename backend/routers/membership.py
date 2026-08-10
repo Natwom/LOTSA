@@ -40,9 +40,10 @@ def get_my_pending_payment(
     db: Session = Depends(database.get_db)
 ):
     """Check if student has a payment awaiting admin approval"""
+    # FIX: compare String column to string literal
     payment = db.query(models.Payment).filter(
         models.Payment.user_id == current_user.id,
-        models.Payment.status == models.PaymentStatus.PENDING
+        models.Payment.status == "pending"
     ).order_by(models.Payment.created_at.desc()).first()
     if not payment:
         return None
@@ -71,21 +72,23 @@ def submit_payment(
         raise HTTPException(status_code=400, detail="You already have an active membership card")
 
     # Block if already pending
+    # FIX: compare String column to string literal
     existing_pending = db.query(models.Payment).filter(
         models.Payment.user_id == current_user.id,
-        models.Payment.status == models.PaymentStatus.PENDING
+        models.Payment.status == "pending"
     ).first()
     if existing_pending:
         raise HTTPException(status_code=400, detail="You already have a pending payment awaiting admin approval")
 
     receipt = data.mpesa_receipt or f"MPESA{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
 
+    # FIX: use string literal instead of Enum
     payment = models.Payment(
         user_id=current_user.id,
         amount=MEMBERSHIP_AMOUNT,
         payment_method=data.payment_method,
         mpesa_receipt=receipt,
-        status=models.PaymentStatus.PENDING,
+        status="pending",
         description=f"Membership Card - Ksh {MEMBERSHIP_AMOUNT} (Paybill {PAYBILL_NUMBER}, Account {ACCOUNT_NUMBER})"
     )
     db.add(payment)
@@ -136,7 +139,8 @@ def get_all_cards(current_user: models.User = Depends(auth.require_admin), db: S
             "issue_date": c.issue_date,
             "expiry_date": c.expiry_date,
             "is_active": c.is_active,
-            "payment_status": c.payment_status.value if c.payment_status else None,
+            # FIX: payment_status is already a string — no .value needed
+            "payment_status": c.payment_status if c.payment_status else None,
             "amount_paid": c.amount_paid,
             "mpesa_receipt": c.mpesa_receipt,
             "created_at": c.created_at,
@@ -166,11 +170,12 @@ def renew_card(
     if card.expiry_date > datetime.utcnow() + timedelta(days=30):
         raise HTTPException(status_code=400, detail="Card is still valid. Renewal available 30 days before expiry.")
     
+    # FIX: use string literal instead of Enum
     payment = models.Payment(
         user_id=current_user.id,
         amount=MEMBERSHIP_AMOUNT,
         payment_method="mpesa",
-        status=models.PaymentStatus.COMPLETED,
+        status="completed",
         description=f"Membership Card Renewal - Ksh {MEMBERSHIP_AMOUNT} (Paybill {PAYBILL_NUMBER}, Account {ACCOUNT_NUMBER})"
     )
     db.add(payment)
