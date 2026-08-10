@@ -140,6 +140,10 @@ class StudentProfileOut(BaseModel):
     class Config:
         from_attributes = True
 
+# ===================================================================
+# FIXED: UserOut now normalizes uppercase roles to lowercase
+# This handles any leftover legacy enum values in the database
+# ===================================================================
 class UserOut(BaseModel):
     id: int
     email: str
@@ -149,6 +153,14 @@ class UserOut(BaseModel):
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
     profile: Optional[StudentProfileOut] = None
+
+    @field_validator('role', mode='before')
+    @classmethod
+    def normalize_role(cls, v):
+        if isinstance(v, str):
+            return v.lower()
+        return v
+
     class Config:
         from_attributes = True
 

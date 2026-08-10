@@ -29,17 +29,21 @@ def seed_admin():
     try:
         admin = db.query(User).filter(User.email == "admin@lotsa.ac.ke").first()
         if not admin:
-            admin = User(
-                email="admin@lotsa.ac.ke",
-                password_hash=auth_utils.get_password_hash("Admin@123"),
-                role=UserRole.ADMIN,
-                full_name="System Administrator",
-                phone_number="254700000000",
-                is_active=True
-            )
-            db.add(admin)
-            db.commit()
-            print("✅ Default admin created: admin@lotsa.ac.ke / Admin@123")
+            try:
+                admin = User(
+                    email="admin@lotsa.ac.ke",
+                    password_hash=auth_utils.get_password_hash("Admin@123"),
+                    role=UserRole.ADMIN,
+                    full_name="System Administrator",
+                    phone_number="254700000000",
+                    is_active=True
+                )
+                db.add(admin)
+                db.commit()
+                print("✅ Default admin created: admin@lotsa.ac.ke / Admin@123")
+            except Exception as e:
+                db.rollback()
+                print(f"⚠️ Could not create admin (run /run-migration first if enum error): {e}")
         else:
             if not admin.full_name:
                 admin.full_name = "System Administrator"
@@ -161,12 +165,13 @@ app.include_router(terms_router.router, prefix="/api/terms", tags=["terms"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(contributions.router, prefix="/api/contributions", tags=["contributions"])
 
-# ==================== TEMPORARY MIGRATION ENDPOINT ====================
+# ==================== MIGRATION ENDPOINT ====================
 @app.get("/run-migration")
 def run_migration():
     db = next(get_db())
     results = []
     
+    # Add missing columns
     for col, col_type in [("full_name", "VARCHAR"), ("phone_number", "VARCHAR")]:
         try:
             db.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type};"))
@@ -176,6 +181,7 @@ def run_migration():
             db.rollback()
             results.append(f"ℹ️ {col}: already exists")
     
+    # Backfill data
     db.execute(text("""
         UPDATE users SET full_name = COALESCE((SELECT sp.full_name FROM student_profiles sp WHERE sp.user_id = users.id), full_name)
         WHERE full_name IS NULL OR full_name = '';
@@ -188,8 +194,26 @@ def run_migration():
     db.commit()
     results.append("✅ Backfilled data")
     
-    db.commit()
-    for val in ['patron', 'deputy_patron', 'committee_member']:
+    # ===================================================================
+    # CRITICAL FIX: Rename old uppercase enum values to lowercase
+    # This instantly fixes all existing users without touching rows
+    # ===================================================================
+    renames = [
+        ('STUDENT', 'student'),
+        ('ADMIN', 'admin'),
+        ('LEADER', 'leader'),
+    ]
+    for old, new in renames:
+        try:
+            db.execute(text(f"ALTER TYPE userrole RENAME VALUE '{old}' TO '{new}';"))
+            db.commit()
+            results.append(f"✅ Renamed enum '{old}' → '{new}'")
+        except Exception as e:
+            db.rollback()
+            results.append(f"ℹ️ '{old}' rename: already lowercase or not found")
+    
+    # Ensure all lowercase values exist in enum
+    for val in ['student', 'admin', 'leader', 'patron', 'deputy_patron', 'committee_member']:
         try:
             db.execute(text(f"ALTER TYPE userrole ADD VALUE '{val}';"))
             db.commit()
