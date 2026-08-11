@@ -212,8 +212,13 @@ export default function ManageDocuments() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 p-4 bg-gray-100">
-              <iframe src={getFileUrl(previewDoc.file_url)} className="w-full h-full rounded-lg bg-white" title={previewDoc.title} />
+            <div className="flex-1 p-4 bg-gray-100 relative">
+              {/* FIX: Use <embed> instead of <iframe> for reliable PDF rendering */}
+              <embed
+                src={getFileUrl(previewDoc.file_url)}
+                type="application/pdf"
+                className="w-full h-full rounded-lg bg-white"
+              />
             </div>
           </div>
         </div>

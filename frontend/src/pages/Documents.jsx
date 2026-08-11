@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import { 
   FileText, Download, Calendar, Database, ScrollText, File, 
-  X, Eye, Search, Filter, FolderOpen, FileSpreadsheet, FileImage 
+  X, Eye, Search, FolderOpen 
 } from 'lucide-react';
 
 const getFileUrl = (fileUrl) => {
@@ -209,12 +209,23 @@ export default function Documents() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 p-4 bg-gray-100">
-              <iframe
+            <div className="flex-1 p-4 bg-gray-100 relative">
+              {/* 
+                FIX: Use <embed> instead of <iframe> for PDFs.
+                <embed> has native browser PDF support and handles 
+                cross-origin Cloudinary URLs better than <iframe>.
+              */}
+              <embed
                 src={getFileUrl(previewDoc.file_url)}
+                type="application/pdf"
                 className="w-full h-full rounded-xl bg-white shadow-sm"
-                title={previewDoc.title}
               />
+              {/* Fallback message if embed fails to render */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <p className="text-gray-400 text-sm bg-white/80 px-4 py-2 rounded-lg hidden">
+                  If the document doesn't appear, please use the Download button.
+                </p>
+              </div>
             </div>
           </div>
         </div>
