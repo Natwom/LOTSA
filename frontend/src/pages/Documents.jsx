@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import { 
   FileText, Download, Calendar, Database, ScrollText, File, 
-  X, Eye, Search, FolderOpen 
+  X, Eye, Search, FolderOpen, Loader2, AlertCircle 
 } from 'lucide-react';
 
 const getFileUrl = (fileUrl) => {
@@ -11,13 +11,13 @@ const getFileUrl = (fileUrl) => {
   return `https://lotsa-api.onrender.com${fileUrl}`;
 };
 
-const isPdf = (fileName) => fileName?.toLowerCase().endsWith('.pdf');
-
 export default function Documents() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [docContent, setDocContent] = useState('');
+  const [contentLoading, setContentLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -26,6 +26,20 @@ export default function Documents() {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
+
+  const openContent = async (doc) => {
+    setPreviewDoc(doc);
+    setContentLoading(true);
+    setDocContent('');
+    try {
+      const res = await axios.get(`/documents/${doc.id}/content`);
+      setDocContent(res.data.content || 'No content available.');
+    } catch (err) {
+      setDocContent('Failed to load document content.');
+    } finally {
+      setContentLoading(false);
+    }
+  };
 
   const filteredDocs = documents.filter(d => {
     const matchesTab = activeTab === 'all' || d.file_type === activeTab;
@@ -150,21 +164,19 @@ export default function Documents() {
               </div>
               
               <div className="flex gap-2">
-                {isPdf(doc.file_name) && (
-                  <button
-                    onClick={() => setPreviewDoc(doc)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors"
-                  >
-                    <Eye size={15} /> View
-                  </button>
-                )}
+                <button
+                  onClick={() => openContent(doc)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors"
+                >
+                  <Eye size={15} /> Read
+                </button>
                 <a
                   href={getFileUrl(doc.file_url)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center justify-center gap-2 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors ${isPdf(doc.file_name) ? 'flex-1' : 'w-full'}`}
+                  className="flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors px-4"
                 >
-                  <Download size={15} /> Download
+                  <Download size={15} />
                 </a>
               </div>
             </div>
@@ -184,16 +196,16 @@ export default function Documents() {
         </div>
       )}
 
-      {/* PDF Preview Modal */}
+      {/* Content Preview Modal */}
       {previewDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-200">
-              <div>
-                <h3 className="font-bold text-gray-900 text-lg">{previewDoc.title}</h3>
+              <div className="min-w-0">
+                <h3 className="font-bold text-gray-900 text-lg truncate">{previewDoc.title}</h3>
                 <p className="text-sm text-gray-500">{previewDoc.file_name}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <a
                   href={getFileUrl(previewDoc.file_url)}
                   download
@@ -202,30 +214,38 @@ export default function Documents() {
                   <Download size={15} /> Download
                 </a>
                 <button
-                  onClick={() => setPreviewDoc(null)}
+                  onClick={() => { setPreviewDoc(null); setDocContent(''); }}
                   className="p-2.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 p-4 bg-gray-100 relative">
-              {/* 
-                FIX: Use <embed> instead of <iframe> for PDFs.
-                <embed> has native browser PDF support and handles 
-                cross-origin Cloudinary URLs better than <iframe>.
-              */}
-              <embed
-                src={getFileUrl(previewDoc.file_url)}
-                type="application/pdf"
-                className="w-full h-full rounded-xl bg-white shadow-sm"
-              />
-              {/* Fallback message if embed fails to render */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p className="text-gray-400 text-sm bg-white/80 px-4 py-2 rounded-lg hidden">
-                  If the document doesn't appear, please use the Download button.
-                </p>
-              </div>
+            <div className="flex-1 p-6 bg-gray-50 overflow-hidden">
+              {contentLoading ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                  <Loader2 size={32} className="animate-spin mb-3" />
+                  <p className="text-sm">Extracting document content...</p>
+                </div>
+              ) : docContent.startsWith('Could not') || docContent.startsWith('Preview not') || docContent.startsWith('This PDF') || docContent.startsWith('This document') ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                  <AlertCircle size={40} className="text-amber-400 mb-3" />
+                  <p className="text-sm max-w-md text-center">{docContent}</p>
+                  <a
+                    href={getFileUrl(previewDoc.file_url)}
+                    download
+                    className="mt-4 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-bold hover:bg-slate-800"
+                  >
+                    Download File
+                  </a>
+                </div>
+              ) : (
+                <div className="h-full overflow-y-auto bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed">
+                    {docContent}
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
         </div>

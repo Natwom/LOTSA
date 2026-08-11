@@ -1,15 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from '../api/axios';
 import DataTable from '../components/DataTable';
-import { Plus, FileText, Trash2, Eye, Download, Upload, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Plus, FileText, Trash2, Eye, Download, Upload, CheckCircle, AlertCircle, X, Loader2 } from 'lucide-react';
 
 const getFileUrl = (fileUrl) => {
   if (!fileUrl) return '#';
   if (fileUrl.startsWith('http')) return fileUrl;
   return `https://lotsa-api.onrender.com${fileUrl}`;
 };
-
-const isPdf = (fileName) => fileName?.toLowerCase().endsWith('.pdf');
 
 export default function ManageDocuments() {
   const [documents, setDocuments] = useState([]);
@@ -19,6 +17,8 @@ export default function ManageDocuments() {
   const [form, setForm] = useState({ title: '', description: '', file_type: 'general' });
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [docContent, setDocContent] = useState('');
+  const [contentLoading, setContentLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => { fetchDocuments(); }, []);
@@ -29,6 +29,20 @@ export default function ManageDocuments() {
       setDocuments(res.data);
       setLoading(false);
     }).catch(() => setLoading(false));
+  };
+
+  const openContent = async (doc) => {
+    setPreviewDoc(doc);
+    setContentLoading(true);
+    setDocContent('');
+    try {
+      const res = await axios.get(`/documents/${doc.id}/content`);
+      setDocContent(res.data.content || 'No content available.');
+    } catch (err) {
+      setDocContent('Failed to load document content.');
+    } finally {
+      setContentLoading(false);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -170,12 +184,10 @@ export default function ManageDocuments() {
       <DataTable columns={columns} data={documents} loading={loading}
         actions={(row) => (
           <>
-            {isPdf(row.file_name) && (
-              <button onClick={() => setPreviewDoc(row)}
-                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="View PDF">
-                <Eye size={16} />
-              </button>
-            )}
+            <button onClick={() => openContent(row)}
+              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Read Content">
+              <Eye size={16} />
+            </button>
             <a href={getFileUrl(row.file_url)} target="_blank" rel="noopener noreferrer"
               className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Download">
               <Download size={16} />
@@ -192,33 +204,48 @@ export default function ManageDocuments() {
         )}
       />
 
-      {/* PDF Preview Modal */}
+      {/* Content Preview Modal */}
       {previewDoc && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <div>
-                <h3 className="font-bold text-gray-900">{previewDoc.title}</h3>
+              <div className="min-w-0">
+                <h3 className="font-bold text-gray-900 truncate">{previewDoc.title}</h3>
                 <p className="text-sm text-gray-500">{previewDoc.file_name}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <a href={getFileUrl(previewDoc.file_url)} download
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
                   <Download size={16} /> Download
                 </a>
-                <button onClick={() => setPreviewDoc(null)}
+                <button onClick={() => { setPreviewDoc(null); setDocContent(''); }}
                   className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                   <X size={20} />
                 </button>
               </div>
             </div>
-            <div className="flex-1 p-4 bg-gray-100 relative">
-              {/* FIX: Use <embed> instead of <iframe> for reliable PDF rendering */}
-              <embed
-                src={getFileUrl(previewDoc.file_url)}
-                type="application/pdf"
-                className="w-full h-full rounded-lg bg-white"
-              />
+            <div className="flex-1 p-4 bg-gray-50 overflow-hidden">
+              {contentLoading ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                  <Loader2 size={32} className="animate-spin mb-3" />
+                  <p className="text-sm">Extracting document content...</p>
+                </div>
+              ) : docContent.startsWith('Could not') || docContent.startsWith('Preview not') || docContent.startsWith('This PDF') || docContent.startsWith('This document') ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                  <AlertCircle size={40} className="text-amber-400 mb-3" />
+                  <p className="text-sm max-w-md text-center">{docContent}</p>
+                  <a href={getFileUrl(previewDoc.file_url)} download
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700">
+                    Download File
+                  </a>
+                </div>
+              ) : (
+                <div className="h-full overflow-y-auto bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                  <pre className="whitespace-pre-wrap font-sans text-sm text-gray-700 leading-relaxed">
+                    {docContent}
+                  </pre>
+                </div>
+              )}
             </div>
           </div>
         </div>
