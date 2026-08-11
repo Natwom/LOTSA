@@ -29,6 +29,7 @@ export default function Leaders() {
     'Deputy President': 'bg-blue-500',
     'High school representative': 'bg-yellow-600',
     'Games Director': 'bg-red-600',
+    'Committee Member': 'bg-violet-600',
   };
 
   const getPositionColor = (pos) => positionColors[pos] || 'bg-gray-600';
@@ -37,8 +38,10 @@ export default function Leaders() {
 
   const filtered = leaders.filter(leader => {
     const matchesPos = selectedPosition === 'all' || leader.position === selectedPosition;
+    // FIX: search by user.full_name fallback too
+    const name = leader.user?.profile?.full_name || leader.user?.full_name || '';
     const matchesSearch = !searchQuery || 
-      leader.user?.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       leader.position?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       leader.bio?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesPos && matchesSearch;
@@ -78,7 +81,7 @@ export default function Leaders() {
             <h1 className="text-3xl font-bold tracking-tight">Leadership Team</h1>
           </div>
           <p className="text-blue-100 text-lg max-w-2xl leading-relaxed">
-            Meet the dedicated student leaders guiding LOTSA forward. Reach out to collaborate or share your ideas.
+            Meet the dedicated leaders guiding LOTSA forward. Reach out to collaborate or share your ideas.
           </p>
         </div>
       </div>
@@ -115,49 +118,60 @@ export default function Leaders() {
       {/* Leaders Grid */}
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((leader) => (
-            <div key={leader.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-              <div className="relative h-72 bg-gray-100 overflow-hidden">
-                {leader.photo_url ? (
-                  <img
-                    src={leader.photo_url}
-                    alt={leader.user?.profile?.full_name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100">
-                    <Users size={72} className="text-blue-200" />
+          {filtered.map((leader) => {
+            // FIX: unified name resolution for students & non-students
+            const displayName = leader.user?.profile?.full_name || leader.user?.full_name || 'Unknown';
+            const isStudent = !!leader.user?.profile;
+            
+            return (
+              <div key={leader.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                <div className="relative h-72 bg-gray-100 overflow-hidden">
+                  {leader.photo_url ? (
+                    <img
+                      src={leader.photo_url}
+                      alt={displayName}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100">
+                      <Users size={72} className="text-blue-200" />
+                    </div>
+                  )}
+                  <div className={`absolute top-4 right-4 ${getPositionColor(leader.position)} text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg`}>
+                    {leader.position}
                   </div>
-                )}
-                <div className={`absolute top-4 right-4 ${getPositionColor(leader.position)} text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg`}>
-                  {leader.position}
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent"></div>
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <h3 className="text-xl font-bold text-white drop-shadow-md">{displayName}</h3>
+                    <p className="text-white/80 text-sm font-medium">
+                      {isStudent ? (leader.user?.profile?.course || '') : (leader.user?.role || '').replace('_', ' ')}
+                    </p>
+                  </div>
                 </div>
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent"></div>
-                <div className="absolute bottom-4 left-4 right-4">
-                  <h3 className="text-xl font-bold text-white drop-shadow-md">{leader.user?.profile?.full_name || 'Unknown'}</h3>
-                  <p className="text-white/80 text-sm font-medium">{leader.user?.profile?.course || ''}</p>
-                </div>
-              </div>
-              
-              <div className="p-5">
-                {leader.bio && (
-                  <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">{leader.bio}</p>
-                )}
                 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <a
-                    href={`mailto:${leader.user?.email}`}
-                    className="flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 transition-colors font-medium"
-                  >
-                    <Mail size={14} /> Contact
-                  </a>
-                  <span className="text-xs text-gray-400 font-medium bg-gray-50 px-2.5 py-1 rounded-full">
-                    Year {leader.user?.profile?.year_of_study}
-                  </span>
+                <div className="p-5">
+                  {leader.bio && (
+                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">{leader.bio}</p>
+                  )}
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <a
+                      href={`mailto:${leader.user?.email}`}
+                      className="flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 transition-colors font-medium"
+                    >
+                      <Mail size={14} /> Contact
+                    </a>
+                    {/* FIX: only show Year badge for students */}
+                    {isStudent && (
+                      <span className="text-xs text-gray-400 font-medium bg-gray-50 px-2.5 py-1 rounded-full">
+                        Year {leader.user?.profile?.year_of_study}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-20 bg-white rounded-2xl border border-gray-200 border-dashed">

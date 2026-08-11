@@ -14,6 +14,10 @@ export default function Navbar({ onMenuClick }) {
   const profileRef = useRef(null)
   const navigate = useNavigate()
 
+  // FIX: unified name resolution
+  const displayName = user?.profile?.full_name || user?.full_name || 'User'
+  const isStudent = !!user?.profile
+
   // Fetch real notifications
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -31,7 +35,6 @@ export default function Navbar({ onMenuClick }) {
     }
     fetchNotifications()
     
-    // Poll every 30 seconds for new notifications
     const interval = setInterval(fetchNotifications, 30000)
     return () => clearInterval(interval)
   }, [user])
@@ -190,20 +193,24 @@ export default function Navbar({ onMenuClick }) {
             className="flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-dark-border rounded-xl p-1.5 pr-3 transition-colors"
           >
             <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-accent-500 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-lg shadow-primary-500/30">
-              {user?.profile?.full_name?.charAt(0) || 'U'}
+              {/* FIX: fallback initial for non-students */}
+              {displayName.charAt(0) || 'U'}
             </div>
             <div className="hidden md:block text-left">
-              <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">{user?.profile?.full_name || 'Student'}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role}</div>
+              <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 leading-tight">{displayName}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role?.replace('_', ' ')}</div>
             </div>
           </button>
 
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-gray-200 dark:border-dark-border overflow-hidden z-50 animate-slide-in-right">
               <div className="p-4 border-b border-gray-100 dark:border-dark-border">
-                <p className="font-semibold text-gray-900 dark:text-white text-sm">{user?.profile?.full_name}</p>
+                <p className="font-semibold text-gray-900 dark:text-white text-sm">{displayName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
-                <p className="text-xs text-primary-600 font-medium mt-1">{user?.profile?.admission_number}</p>
+                {/* FIX: only show admission number for students */}
+                {isStudent && (
+                  <p className="text-xs text-primary-600 font-medium mt-1">{user?.profile?.admission_number}</p>
+                )}
               </div>
               <div className="p-2">
                 <button onClick={() => { setProfileOpen(false); navigate('/profile') }} className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-border rounded-lg transition-colors">

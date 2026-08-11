@@ -25,6 +25,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const { logout, user } = useAuth()
   const location = useLocation()
 
+  // FIX: unified name resolution
+  const displayName = user?.profile?.full_name || user?.full_name || 'User'
+  const isStudent = !!user?.profile
+
   const sidebarContent = (
     <>
       {/* Logo */}
@@ -39,12 +43,20 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           </div>
         </div>
         
-        {/* Student ID Badge */}
-        {user?.profile && (
+        {/* Student ID Badge — only for students */}
+        {isStudent && (
           <div className="mt-4 p-3 bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20 rounded-xl border border-primary-100 dark:border-primary-800">
             <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Student ID</p>
             <p className="text-sm font-bold text-primary-700 dark:text-primary-300 mt-0.5">{user.profile.admission_number}</p>
             <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{user.profile.course}</p>
+          </div>
+        )}
+        
+        {/* Non-student badge */}
+        {!isStudent && user && (
+          <div className="mt-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Role</p>
+            <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 mt-0.5 capitalize">{user.role?.replace('_', ' ')}</p>
           </div>
         )}
       </div>
@@ -76,6 +88,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-100 dark:border-dark-border">
+        <div className="px-4 mb-3">
+          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{displayName}</p>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 capitalize">{user?.role?.replace('_', ' ')}</p>
+        </div>
         <button 
           onClick={logout} 
           className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
