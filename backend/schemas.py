@@ -140,10 +140,6 @@ class StudentProfileOut(BaseModel):
     class Config:
         from_attributes = True
 
-# ===================================================================
-# FIXED: UserOut now normalizes uppercase roles to lowercase
-# This handles any leftover legacy enum values in the database
-# ===================================================================
 class UserOut(BaseModel):
     id: int
     email: str
@@ -326,6 +322,8 @@ class ConversationOut(BaseModel):
     name: Optional[str] = None
     created_at: datetime
     last_message: Optional[str] = None
+    last_message_at: Optional[datetime] = None  # FIX: added for sorting & time display
+
     class Config:
         from_attributes = True
 

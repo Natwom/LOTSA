@@ -3,6 +3,63 @@ import { useAuth } from '../context/AuthContext'
 import axios from '../api/axios'
 import { Send, Paperclip, Image as ImageIcon, MessageSquare, Users, Search, User, Plus, X, UsersRound } from 'lucide-react'
 
+// FIX: Nairobi time formatters
+const formatNairobiTime = (isoString) => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  return date.toLocaleTimeString('en-GB', {
+    timeZone: 'Africa/Nairobi',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+const formatNairobiDateTime = (isoString) => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  
+  if (isToday) {
+    return date.toLocaleTimeString('en-GB', {
+      timeZone: 'Africa/Nairobi',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+  }
+  return date.toLocaleDateString('en-GB', {
+    timeZone: 'Africa/Nairobi',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+const formatChatTime = (isoString) => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  
+  if (isToday) {
+    return date.toLocaleTimeString('en-GB', {
+      timeZone: 'Africa/Nairobi',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+  }
+  return date.toLocaleDateString('en-GB', {
+    timeZone: 'Africa/Nairobi',
+    day: 'numeric',
+    month: 'short'
+  })
+}
+
 export default function Chat() {
   const { user } = useAuth()
   const [conversations, setConversations] = useState([])
@@ -23,11 +80,9 @@ export default function Chat() {
     fetchUsers()
 
     const token = localStorage.getItem('token')
-    // BUG FIX #1: Correct domain is lotsa-api.onrender.com, not lotsa.onrender.com
     const WS_BASE = 'wss://lotsa-api.onrender.com'
     
     const connect = () => {
-      // BUG FIX #2: Correct path is /api/chats/ws, not /ws appended to /api/chats
       ws.current = new WebSocket(`${WS_BASE}/api/chats/ws?token=${token}`)
 
       ws.current.onopen = () => console.log('✅ WebSocket connected')
@@ -43,7 +98,6 @@ export default function Chat() {
 
       ws.current.onclose = (e) => {
         console.log('❌ WebSocket closed:', e.code, e.reason)
-        // BUG FIX #3: Don't reconnect on auth failure (code 1008)
         if (e.code !== 1008) {
           setTimeout(connect, 3000)
         }
@@ -70,7 +124,13 @@ export default function Chat() {
 
   const fetchConversations = () => {
     axios.get('/chats/conversations').then(res => {
-      setConversations(res.data || [])
+      // FIX: ensure most recent is first (backend sorts, but double-check)
+      const sorted = (res.data || []).sort((a, b) => {
+        const aTime = a.last_message_at ? new Date(a.last_message_at) : new Date(a.created_at)
+        const bTime = b.last_message_at ? new Date(b.last_message_at) : new Date(b.created_at)
+        return bTime - aTime
+      })
+      setConversations(sorted)
     }).catch(() => {})
   }
 
@@ -136,7 +196,6 @@ export default function Chat() {
     e.preventDefault()
     if (!input.trim() || !activeConv) return
     
-    // BUG FIX #4: Check connection before sending
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       alert('Connection lost. Please refresh the page.')
       return
@@ -201,11 +260,19 @@ export default function Chat() {
                   onClick={() => loadMessages(conv.id)}
                   className={`w-full text-left p-4 border-b border-gray-100 hover:bg-white transition-colors ${activeConv === conv.id ? 'bg-white border-l-4 border-l-blue-600' : ''}`}
                 >
-                  <div className="flex items-center gap-2">
-                    {conv.is_group && <UsersRound size={14} className="text-blue-500" />}
-                    <div className="font-medium text-gray-900">
-                      {conv.name || 'Private Chat'}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {conv.is_group && <UsersRound size={14} className="text-blue-500 shrink-0" />}
+                      <div className="font-medium text-gray-900 truncate">
+                        {conv.name || 'Private Chat'}
+                      </div>
                     </div>
+                    {/* FIX: Show Nairobi time of last message */}
+                    {conv.last_message_at && (
+                      <span className="text-[10px] text-gray-400 shrink-0 ml-2">
+                        {formatChatTime(conv.last_message_at)}
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-gray-500 truncate mt-0.5">
                     {conv.last_message || 'No messages yet'}
@@ -303,8 +370,9 @@ export default function Chat() {
                       )}
                       <div className={`px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}>
                         {msg.content}
+                        {/* FIX: Nairobi time in message bubbles */}
                         <div className={`text-xs mt-1 ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>
-                          {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          {msg.created_at ? formatNairobiTime(msg.created_at) : ''}
                         </div>
                       </div>
                     </div>

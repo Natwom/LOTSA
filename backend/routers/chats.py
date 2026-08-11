@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List
+from datetime import datetime
 from .. import models, schemas, database, auth as auth_utils
 
 router = APIRouter()
@@ -29,8 +30,12 @@ def get_conversations(
             "name": display_name,
             "created_at": conv.created_at,
             "last_message": last_msg.content if last_msg else None,
+            "last_message_at": last_msg.created_at if last_msg else conv.created_at,
         }
         result.append(conv_dict)
+    
+    # FIX: Sort by most recent message first (newest activity at top)
+    result.sort(key=lambda x: x['last_message_at'] or datetime.min, reverse=True)
     return result
 
 @router.post("/conversations", response_model=schemas.ConversationOut)
@@ -58,6 +63,7 @@ def create_conversation(
                     "name": display_name,
                     "created_at": conv.created_at,
                     "last_message": last_msg.content if last_msg else None,
+                    "last_message_at": last_msg.created_at if last_msg else conv.created_at,
                 }
 
     conv = models.Conversation(
@@ -92,6 +98,7 @@ def create_conversation(
         "name": display_name,
         "created_at": conv.created_at,
         "last_message": None,
+        "last_message_at": conv.created_at,
     }
 
 @router.post("/groups")
@@ -126,6 +133,7 @@ def create_group(
         "name": conv.name,
         "created_at": conv.created_at,
         "last_message": None,
+        "last_message_at": conv.created_at,
     }
 
 @router.get("/conversations/{conv_id}/messages")
