@@ -75,7 +75,7 @@ export default function ManageLeaders() {
       key: 'photo_url',
       label: 'Photo',
       render: (val) => val ? (
-        <img src={val} alt="" className="w-12 h-12 rounded-full object-cover" />
+        <img src={val} alt="" className="w-12 h-12 rounded-full object-cover object-top" />
       ) : (
         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-400"><Award size={20} /></div>
       )
@@ -209,6 +209,9 @@ export default function ManageLeaders() {
                 onChange={(e) => setSelectedFile(e.target.files[0])}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100"
               />
+              <p className="text-xs text-amber-600 mt-1">
+                Tip: Use portrait-oriented photos (taller than wide) for best results. The frontend crops from the top down.
+              </p>
             </div>
           </div>
           <div>

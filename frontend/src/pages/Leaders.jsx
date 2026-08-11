@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
-import { Users, Mail, Award, Crown, Search, Filter } from 'lucide-react';
+import { Users, Mail, Award, Crown, Search } from 'lucide-react';
 
 export default function Leaders() {
   const [leaders, setLeaders] = useState([]);
@@ -38,7 +38,6 @@ export default function Leaders() {
 
   const filtered = leaders.filter(leader => {
     const matchesPos = selectedPosition === 'all' || leader.position === selectedPosition;
-    // FIX: search by user.full_name fallback too
     const name = leader.user?.profile?.full_name || leader.user?.full_name || '';
     const matchesSearch = !searchQuery || 
       name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -54,7 +53,7 @@ export default function Leaders() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1,2,3,4,5,6].map(i => (
             <div key={i} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="h-64 bg-gray-200 animate-pulse"></div>
+              <div className="aspect-[3/4] bg-gray-200 animate-pulse"></div>
               <div className="p-6 space-y-3">
                 <div className="h-5 bg-gray-200 rounded w-2/3 animate-pulse"></div>
                 <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
@@ -117,20 +116,25 @@ export default function Leaders() {
 
       {/* Leaders Grid */}
       {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((leader) => {
-            // FIX: unified name resolution for students & non-students
             const displayName = leader.user?.profile?.full_name || leader.user?.full_name || 'Unknown';
             const isStudent = !!leader.user?.profile;
             
             return (
               <div key={leader.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                <div className="relative h-72 bg-gray-100 overflow-hidden">
+                {/* 
+                  FIX: aspect-[3/4] creates a consistent portrait ratio.
+                  object-cover object-top ensures the TOP of the image is always 
+                  visible (faces don't get cut off), and it crops from the bottom 
+                  if the image is too tall.
+                */}
+                <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
                   {leader.photo_url ? (
                     <img
                       src={leader.photo_url}
                       alt={displayName}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100">
@@ -161,7 +165,6 @@ export default function Leaders() {
                     >
                       <Mail size={14} /> Contact
                     </a>
-                    {/* FIX: only show Year badge for students */}
                     {isStudent && (
                       <span className="text-xs text-gray-400 font-medium bg-gray-50 px-2.5 py-1 rounded-full">
                         Year {leader.user?.profile?.year_of_study}
