@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import axios from '../api/axios'
+import { Link } from 'react-router-dom'
 import { 
   User, Clock, Lock, CreditCard, Vote, Search, Filter,
   Trophy, CheckCircle, AlertTriangle, ArrowRight, 
@@ -67,13 +68,13 @@ export default function Elections() {
     const end = new Date(endTime)
     const now = new Date()
     const diffMs = end - now
-    
+
     if (diffMs <= 0) return 'Election ended'
-    
+
     const diffDays = Math.floor(diffMs / 86400000)
     const diffHours = Math.floor((diffMs % 86400000) / 3600000)
     const diffMins = Math.floor((diffMs % 3600000) / 60000)
-    
+
     if (diffDays > 0) return `${diffDays}d ${diffHours}h remaining`
     if (diffHours > 0) return `${diffHours}h ${diffMins}m remaining`
     return `${diffMins}m remaining`
@@ -211,12 +212,12 @@ export default function Elections() {
           </p>
         </div>
         {!hasValidMembership && (
-          <a 
-            href="/membership" 
+          <Link 
+            to="/membership" 
             className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-700 transition-colors flex items-center gap-1.5 flex-shrink-0"
           >
             <CreditCard size={14} /> Apply Now
-          </a>
+          </Link>
         )}
       </div>
 
@@ -313,12 +314,12 @@ export default function Elections() {
                       <p className="text-gray-500 text-sm mb-4 max-w-sm mx-auto">
                         This election requires an active membership card to view candidates and vote.
                       </p>
-                      <a 
-                        href="/membership" 
+                      <Link 
+                        to="/membership" 
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-100"
                       >
                         <CreditCard size={14} /> Get Membership Card
-                      </a>
+                      </Link>
                     </div>
                   ) : isVoted ? (
                     <div className="bg-green-50 rounded-xl p-6 border border-green-200 flex items-center gap-4">
@@ -334,7 +335,7 @@ export default function Elections() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {(election.candidates || []).map(candidate => {
                         const isVoting = votingId === `${election.id}-${candidate.id}`
-                        
+
                         return (
                           <div 
                             key={candidate.id} 
@@ -398,7 +399,7 @@ export default function Elections() {
                           </div>
                         )
                       })}
-                      
+
                       {(election.candidates || []).length === 0 && (
                         <div className="col-span-full text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                           <Users size={32} className="text-gray-300 mx-auto mb-2" />
