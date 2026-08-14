@@ -82,7 +82,7 @@ export default function Events() {
   const categories = ['all', ...new Set(events.map(e => e.category?.toLowerCase() || 'general'))]
 
   const now = new Date()
-  
+
   const upcomingEvents = events.filter(e => new Date(e.event_date) >= now)
   const pastEvents = events.filter(e => new Date(e.event_date) < now)
 
@@ -245,7 +245,7 @@ export default function Events() {
                       <Icon size={48} className="text-white/80" />
                     </div>
                   )}
-                  
+
                   {/* Category Badge */}
                   <div className={`absolute top-4 left-4 ${style.bg} ${style.color} border ${style.border} px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 backdrop-blur-sm bg-opacity-90`}>
                     <Icon size={12} /> {event.category || 'General'}
@@ -269,7 +269,7 @@ export default function Events() {
                   <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors line-clamp-1">
                     {event.title}
                   </h3>
-                  
+
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2.5 text-sm text-gray-600">
                       <div className="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
@@ -299,14 +299,12 @@ export default function Events() {
                         </span>
                       </div>
                     ) : isRegistered ? (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-green-600 flex items-center gap-1.5">
-                          <CheckCircle size={16} /> You're all set!
-                        </span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
-                          <Users size={12} /> {event.registrations?.length || 0} going
-                        </span>
-                      </div>
+                      <button
+                        disabled
+                        className="w-full py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-default"
+                      >
+                        <CheckCircle size={16} /> Registered
+                      </button>
                     ) : (
                       <button 
                         onClick={() => register(event.id)} 
