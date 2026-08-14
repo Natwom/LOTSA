@@ -21,8 +21,6 @@ export default function Login() {
     setIsLoading(true)
     try {
       const data = await login(email, password)
-      // Route based on role — all authenticated users go to dashboard
-      // The dashboard will show different content based on role
       navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid email or password. Please try again.')
@@ -38,7 +36,6 @@ export default function Login() {
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 -right-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-24 left-1/3 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl"></div>
-        {/* Dot pattern */}
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
           backgroundSize: '24px 24px'
@@ -92,14 +89,9 @@ export default function Login() {
 
             {/* Password */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-bold text-gray-700">
-                  Password
-                </label>
-                <Link to="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-semibold">
-                  Forgot password?
-                </Link>
-              </div>
+              <label className="block text-sm font-bold text-gray-700 mb-1.5">
+                Password
+              </label>
               <div className="relative">
                 <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
