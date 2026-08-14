@@ -120,7 +120,7 @@ export default function Membership() {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Payment Submitted</h2>
           <p className="text-gray-500 mb-8 max-w-md mx-auto">Your membership payment is awaiting admin approval. You'll receive your digital card once verified.</p>
-          
+
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 max-w-md mx-auto text-left space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Amount</span>
@@ -189,8 +189,8 @@ export default function Membership() {
             <h3 className="font-bold text-amber-800 mb-2 flex items-center gap-2"><Wallet size={16} /> Payment Instructions</h3>
             <div className="grid grid-cols-2 gap-3 text-sm text-amber-700">
               <div><span className="font-semibold">Amount:</span> Ksh 100</div>
-              <div><span className="font-semibold">Paybill:</span> 254254</div>
-              <div><span className="font-semibold">Account:</span> 12345678</div>
+              <div><span className="font-semibold">Paybill:</span> 400200</div>
+              <div><span className="font-semibold">Account:</span> 1092275</div>
               <div><span className="font-semibold">Valid for:</span> 1 Year</div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function Membership() {
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/3 blur-2xl"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full translate-y-1/2 -translate-x-1/3 blur-xl"></div>
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] opacity-30"></div>
-            
+
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-10">
                 <div>
@@ -246,7 +246,7 @@ export default function Membership() {
                   <div className="text-blue-200 text-[10px] uppercase tracking-[0.2em] font-medium">Card Number</div>
                   <div className="text-2xl font-mono font-bold tracking-widest mt-0.5">{card.card_number}</div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <div>
                     <div className="text-blue-200 text-[10px] uppercase tracking-[0.2em] font-medium">Member Name</div>

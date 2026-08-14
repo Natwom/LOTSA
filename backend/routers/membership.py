@@ -7,8 +7,8 @@ from .. import models, schemas, database, auth
 router = APIRouter()
 
 # ─── Payment Configuration ───
-PAYBILL_NUMBER = "254254"
-ACCOUNT_NUMBER = "12345678"
+PAYBILL_NUMBER = "400200"
+ACCOUNT_NUMBER = "1092275"
 MEMBERSHIP_AMOUNT = 100
 
 def generate_card_number(db: Session):
@@ -107,13 +107,13 @@ def validate_card(card_number: str, db: Session = Depends(database.get_db)):
         models.MembershipCard.card_number == card_number,
         models.MembershipCard.is_active == True
     ).first()
-    
+
     if not card:
         return {"valid": False, "message": "Invalid or inactive card"}
-    
+
     if card.expiry_date < datetime.utcnow():
         return {"valid": False, "message": "Card expired", "expiry_date": card.expiry_date}
-    
+
     return {
         "valid": True,
         "card_number": card.card_number,
@@ -166,10 +166,10 @@ def renew_card(
     card = db.query(models.MembershipCard).filter(models.MembershipCard.id == card_id).first()
     if not card or card.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Card not found")
-    
+
     if card.expiry_date > datetime.utcnow() + timedelta(days=30):
         raise HTTPException(status_code=400, detail="Card is still valid. Renewal available 30 days before expiry.")
-    
+
     # FIX: use string literal instead of Enum
     payment = models.Payment(
         user_id=current_user.id,
@@ -179,9 +179,9 @@ def renew_card(
         description=f"Membership Card Renewal - Ksh {MEMBERSHIP_AMOUNT} (Paybill {PAYBILL_NUMBER}, Account {ACCOUNT_NUMBER})"
     )
     db.add(payment)
-    
+
     card.expiry_date = datetime.utcnow() + timedelta(days=365)
     card.is_active = True
-    
+
     db.commit()
     return {"message": "Card renewed successfully", "new_expiry": card.expiry_date}

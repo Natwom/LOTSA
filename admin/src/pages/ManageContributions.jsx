@@ -122,7 +122,7 @@ export default function ManageContributions() {
           <Wallet size={20} className="text-amber-600" />
         </div>
         <div className="text-sm text-amber-800">
-          <span className="font-bold">Universal M-Pesa Details:</span> All students pay via Paybill <span className="font-mono font-bold">254254</span>, Account <span className="font-mono font-bold">12345678</span> for contributions.
+          <span className="font-bold">Universal M-Pesa Details:</span> All students pay via Paybill <span className="font-mono font-bold">400200</span>, Account <span className="font-mono font-bold">1092275</span> for contributions.
         </div>
       </div>
 

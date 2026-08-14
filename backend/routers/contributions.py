@@ -8,8 +8,8 @@ from .. import models, schemas, database, auth
 router = APIRouter()
 
 # ─── Payment Configuration ───
-PAYBILL_NUMBER = "254254"
-ACCOUNT_NUMBER = "12345678"
+PAYBILL_NUMBER = "400200"
+ACCOUNT_NUMBER = "1092275"
 
 # ==================== ADMIN ENDPOINTS ====================
 
@@ -66,14 +66,14 @@ def verify_payment(
     payment = db.query(models.ContributionPayment).filter(models.ContributionPayment.id == payment_id).first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
-    
+
     # FIX: use string literal instead of Enum
     payment.status = "completed"
     payment.verified_by = admin.id
     payment.verified_at = datetime.utcnow()
     db.commit()
     db.refresh(payment)
-    
+
     notif = models.Notification(
         user_id=payment.user_id,
         title="Contribution Payment Verified",
@@ -82,7 +82,7 @@ def verify_payment(
     )
     db.add(notif)
     db.commit()
-    
+
     return payment
 
 @router.get("/stats")
@@ -96,11 +96,11 @@ def get_contribution_stats(
     total_collected = db.query(func.sum(models.ContributionPayment.amount)).filter(
         models.ContributionPayment.status == "completed"
     ).scalar() or 0
-    
+
     pending_payments = db.query(func.count(models.ContributionPayment.id)).filter(
         models.ContributionPayment.status == "pending"
     ).scalar()
-    
+
     return {
         "total_periods": total_periods,
         "total_payments": total_payments,
@@ -122,14 +122,14 @@ def make_payment(
     ).first()
     if not period:
         raise HTTPException(status_code=400, detail="Contribution period not found or inactive")
-    
+
     existing = db.query(models.ContributionPayment).filter(
         models.ContributionPayment.user_id == current_user.id,
         models.ContributionPayment.period_id == payment.period_id
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="You have already submitted a payment for this period")
-    
+
     # FIX: use string literal instead of Enum
     db_payment = models.ContributionPayment(
         user_id=current_user.id,
@@ -142,7 +142,7 @@ def make_payment(
     db.add(db_payment)
     db.commit()
     db.refresh(db_payment)
-    
+
     notif = models.Notification(
         user_id=current_user.id,
         title="Contribution Payment Submitted",
@@ -151,7 +151,7 @@ def make_payment(
     )
     db.add(notif)
     db.commit()
-    
+
     return db_payment
 
 @router.get("/my-payments", response_model=List[schemas.ContributionPaymentOut])
@@ -171,14 +171,14 @@ def my_contribution_status(
     periods = db.query(models.ContributionPeriod).filter(
         models.ContributionPeriod.is_active == True
     ).order_by(models.ContributionPeriod.year.desc(), models.ContributionPeriod.month.desc()).all()
-    
+
     result = []
     for period in periods:
         payment = db.query(models.ContributionPayment).filter(
             models.ContributionPayment.user_id == current_user.id,
             models.ContributionPayment.period_id == period.id
         ).first()
-        
+
         # FIX: payment.status is already a string — no .value needed
         result.append({
             "period": {
@@ -195,5 +195,5 @@ def my_contribution_status(
             # FIX: compare string to string literal
             "verified": payment.status == "completed" if payment else False
         })
-    
+
     return result
