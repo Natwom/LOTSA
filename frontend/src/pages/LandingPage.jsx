@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { 
   ArrowRight, Users, Calendar, MessageSquare, Shield, 
-  Zap, Heart, Globe, ChevronDown, GraduationCap 
+  Zap, Heart, Globe, ChevronDown, GraduationCap,
+  Vote, Megaphone, FileText
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -47,10 +48,6 @@ export default function LandingPage() {
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent-400/20 rounded-full blur-3xl animate-float animation-delay-500" />
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-sm font-medium mb-8 animate-fade-in">
-            <Zap size={14} /> Now open for 2024 Academic Year
-          </div>
-          
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 animate-slide-up">
             Your Campus Life,<br />
             <span className="text-gradient">Digitally Connected</span>
@@ -75,21 +72,40 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats Bar */}
-      <section className="relative -mt-20 z-10 max-w-5xl mx-auto px-4">
-        <div className="glass-card rounded-2xl p-6 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          {[
-            { value: '2,500+', label: 'Active Students', icon: Users },
-            { value: '150+', label: 'Events Hosted', icon: Calendar },
-            { value: '12', label: 'Leadership Positions', icon: Shield },
-            { value: '99.9%', label: 'Uptime', icon: Zap },
-          ].map((stat, i) => (
-            <div key={i} className="space-y-1">
-              <stat.icon size={20} className="mx-auto text-primary-500 mb-2" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">{stat.label}</div>
+      {/* Quick Actions Bar */}
+      <section className="relative -mt-20 z-10 max-w-6xl mx-auto px-4">
+        <div className="glass-card rounded-2xl p-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+          <Link to="/events" className="group flex flex-col items-center justify-center p-5 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all duration-300 text-center">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform duration-300">
+              <Calendar size={22} />
             </div>
-          ))}
+            <span className="text-sm font-bold text-gray-900 dark:text-white">Explore Events</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Register & RSVP</span>
+          </Link>
+
+          <Link to="/elections" className="group flex flex-col items-center justify-center p-5 rounded-xl hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all duration-300 text-center">
+            <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg shadow-violet-500/20 group-hover:scale-110 transition-transform duration-300">
+              <Vote size={22} />
+            </div>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">Cast Your Vote</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Secure Elections</span>
+          </Link>
+
+          <Link to="/announcements" className="group flex flex-col items-center justify-center p-5 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all duration-300 text-center">
+            <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform duration-300">
+              <Megaphone size={22} />
+            </div>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">Announcements</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Stay Informed</span>
+          </Link>
+
+          <Link to="/complaints" className="group flex flex-col items-center justify-center p-5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-300 text-center">
+            <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-pink-500 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg shadow-rose-500/20 group-hover:scale-110 transition-transform duration-300">
+              <FileText size={22} />
+            </div>
+            <span className="text-sm font-bold text-gray-900 dark:text-white">File Complaint</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Get Support</span>
+          </Link>
         </div>
       </section>
 
